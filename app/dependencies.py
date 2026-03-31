@@ -1,0 +1,38 @@
+from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
+
+from app.config import get_settings
+from app.services.image_service import ImageProcessor
+from app.services.widget_manager import WidgetManager
+from app.widgets.book_widget import BookWidget
+from app.widgets.clock_widget import ClockWidget
+from app.widgets.spotify_widget import SpotifyWidget
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ASSETS_DIR = PROJECT_ROOT / "assets"
+TEMPLATES_DIR = PROJECT_ROOT / "app" / "templates"
+PREVIEW_TEMPLATE_PATH = TEMPLATES_DIR / "preview.html"
+
+settings = get_settings()
+image_processor = ImageProcessor(
+    size=settings.image_size,
+    timeout_seconds=settings.request_timeout_seconds,
+)
+spotify_widget = SpotifyWidget(settings=settings, image_processor=image_processor, priority=100)
+book_widget = BookWidget(
+    image_processor=image_processor,
+    state_path=settings.book_state_path,
+    priority=50,
+)
+clock_widget = ClockWidget(priority=0)
+widget_manager = WidgetManager(
+    primary_widgets=[spotify_widget, book_widget],
+    fallback_widget=clock_widget,
+)
+
+
+@lru_cache(maxsize=1)
+def load_preview_template() -> str:
+    return PREVIEW_TEMPLATE_PATH.read_text(encoding="utf-8")

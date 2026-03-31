@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<body>
+<canvas id="c" width="64" height="32" style="transform: scale(10); image-rendering: pixelated; border: 1px solid red;"></canvas>
+<script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    
+    // Simulate what happens in alphabetic baseline
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '16px monospace';
+    // Draw horizontal line at Y=16
+    ctx.fillStyle = 'red';
+    ctx.fillRect(0, 16, 64, 1);
+    
+    ctx.fillStyle = 'black';
+    ctx.fillText('17:49', 0, 16);
+</script>
+</body>
+</html>

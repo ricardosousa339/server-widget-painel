@@ -20,8 +20,17 @@ fi
 nohup "$PYTHON_BIN" -m app.main > "$LOG_FILE" 2>&1 &
 SERVER_PID=$!
 
-sleep 1
-HTTP_CODE="$(curl -s -o /tmp/server-widget-health.out -w "%{http_code}" http://127.0.0.1:8000/health || true)"
+HEALTH_URL="http://127.0.0.1:8000/health"
+HTTP_CODE="000"
+
+# Aguarda o servidor ficar pronto (até ~10s)
+for _ in {1..10}; do
+  sleep 1
+  HTTP_CODE="$(curl --max-time 1 -s -o /tmp/server-widget-health.out -w "%{http_code}" "$HEALTH_URL" || true)"
+  if [[ "$HTTP_CODE" == "200" ]]; then
+    break
+  fi
+done
 
 if [[ "$HTTP_CODE" == "200" ]]; then
   echo "[ok] Servidor reiniciado (PID $SERVER_PID)"
