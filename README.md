@@ -51,6 +51,46 @@ Edite `.env`:
 - `SKOOB_AUTH_COOKIE=`
 - `SKOOB_READING_TYPES=2`
 
+## Gerar tokens do Spotify (access + refresh)
+
+No Spotify Developer Dashboard voce encontra apenas `Client ID` e `Client Secret`.
+Os tokens de usuario (`SPOTIFY_ACCESS_TOKEN` e `SPOTIFY_REFRESH_TOKEN`) precisam ser gerados via OAuth.
+
+1. No app do Spotify, cadastre a Redirect URI usada no projeto:
+  - `http://localhost:8888/callback`
+2. Rode o script abaixo e siga o fluxo no navegador:
+
+```bash
+python scripts/get_spotify_tokens.py \
+  --client-id "CLIENT_ID_REAL" \
+  --client-secret "CLIENT_SECRET_REAL" \
+  --redirect-uri "http://localhost:8888/callback" \
+  --show-dialog
+```
+
+Em ambientes sem browser integrado (WSL/servidor), use:
+
+```bash
+python scripts/get_spotify_tokens.py \
+  --client-id "CLIENT_ID_REAL" \
+  --client-secret "CLIENT_SECRET_REAL" \
+  --redirect-uri "http://localhost:8888/callback" \
+  --show-dialog \
+  --no-browser
+```
+
+Depois, copie a URL impressa no terminal e abra manualmente no navegador do seu sistema.
+
+3. Ao final, cole os valores impressos no seu `.env`:
+  - `SPOTIPY_CLIENT_ID`
+  - `SPOTIPY_CLIENT_SECRET`
+  - `SPOTIPY_REDIRECT_URI`
+  - `SPOTIFY_ACCESS_TOKEN`
+  - `SPOTIFY_REFRESH_TOKEN`
+
+Se preferir fluxo manual, use `--print-auth-url` para apenas imprimir a URL de autorizacao,
+e depois rode novamente com `--code "<code_da_callback>"`.
+
 ## Sync do Skoob (scraping)
 
 O backend suporta dois modos inspirados no fluxo do projeto `skoob-api`:
