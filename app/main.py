@@ -313,52 +313,26 @@ def preview_painel() -> HTMLResponse:
             return looped.slice(start, start + maxLen);
         }
 
-        function drawTextWithOutline(text, x, y, color = '#fff', font = '6px monospace') {
+        function drawMonoText(text, x, y, opts = {}) {
+            const {
+                color = '#f5f7ff',
+                font = '7px monospace',
+            } = opts;
+
             ctx.font = font;
-            ctx.fillStyle = '#000';
-            ctx.fillText(text, x - 1, y);
-            ctx.fillText(text, x + 1, y);
-            ctx.fillText(text, x, y - 1);
-            ctx.fillText(text, x, y + 1);
             ctx.fillStyle = color;
             ctx.fillText(text, x, y);
         }
 
-        function drawTextRow(text, x, y, width, opts = {}) {
-            const {
-                fg = '#e9eef9',
-                bg = 'rgba(0,0,0,.72)',
-                font = '6px monospace',
-                padX = 1,
-                padY = 5,
-            } = opts;
-            ctx.fillStyle = bg;
-            ctx.fillRect(x, y - padY, width, 7);
-            drawTextWithOutline(text, x + padX, y, fg, font);
-        }
-
         function drawClock(data) {
             clearCanvas();
-            ctx.fillStyle = '#040608';
+            ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, 64, 32);
-            ctx.fillStyle = 'rgba(255,255,255,.05)';
-            ctx.fillRect(0, 15, 64, 1);
 
-            drawTextWithOutline(data.time || '--:--', 3, 13, '#41f08b', 'bold 12px monospace');
-            drawTextRow(`${data.seconds || '00'}s`, 49, 13, 14, {
-                fg: '#91e0ff',
-                bg: 'rgba(0,0,0,.85)',
-                font: '6px monospace',
-            });
-
-            drawTextRow((data.weekday || '---').toUpperCase(), 2, 24, 28, {
-                fg: '#f4f7ff',
-                bg: 'rgba(0,0,0,.75)',
-            });
-            drawTextRow(data.date || '--/--', 33, 24, 29, {
-                fg: '#f4f7ff',
-                bg: 'rgba(0,0,0,.75)',
-            });
+            drawMonoText(data.time || '--:--', 2, 14, { font: 'bold 14px monospace' });
+            drawMonoText(`${data.seconds || '00'}s`, 49, 14);
+            drawMonoText((data.weekday || '---').toUpperCase(), 2, 25);
+            drawMonoText(data.date || '--/--', 34, 25);
         }
 
         function decodeRgb565ToImageData(base64, w, h) {
@@ -453,19 +427,14 @@ def preview_painel() -> HTMLResponse:
             ctx.fillStyle = 'rgba(0,0,0,.78)';
             ctx.fillRect(32, 0, 32, 32);
 
-            drawTextRow(label.toUpperCase(), 33, 7, 30, {
-                fg: label === 'spotify' ? '#34e68a' : '#ffd866',
-                bg: 'rgba(0,0,0,.9)',
-                font: 'bold 6px monospace',
-            });
+            drawMonoText(label.toUpperCase(), 33, 7);
 
-            const title = marqueeText(data.track || data.title || '-', 14, 320);
-            const author = marqueeText(data.artist || data.author || '-', 14, 420);
-            const album = marqueeText(data.album || '', 14, 520);
+            // Em 64x32 priorizamos apenas o essencial para legibilidade.
+            const title = marqueeText(data.track || data.title || '-', 12, 280);
+            const author = marqueeText(data.artist || data.author || '-', 12, 380);
 
-            drawTextRow(title, 33, 14, 30, { fg: '#f4f7ff', bg: 'rgba(10,14,22,.9)' });
-            drawTextRow(author, 33, 21, 30, { fg: '#9dd8ff', bg: 'rgba(10,14,22,.9)' });
-            drawTextRow(album, 33, 28, 30, { fg: '#b4bfce', bg: 'rgba(10,14,22,.9)' });
+            drawMonoText(title, 33, 16, { font: 'bold 8px monospace' });
+            drawMonoText(author, 33, 26);
 
             if (label === 'spotify' && data.duration_ms > 0) {
                 const progressRatio = Math.max(0, Math.min(1, (data.progress_ms || 0) / data.duration_ms));
