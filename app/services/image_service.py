@@ -5,7 +5,7 @@ import io
 from typing import Literal
 
 import requests
-from PIL import Image, ImageOps
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
 
 ImageMode = Literal["rgb565_base64", "rgb_base64", "rgb_array"]
@@ -74,11 +74,24 @@ class ImageProcessor:
     def _normalize_image(self, image: Image.Image) -> Image.Image:
         resampling = getattr(Image, "Resampling", Image)
         rgb_image = image.convert("RGB")
-        return ImageOps.fit(
+        fitted = ImageOps.fit(
             rgb_image,
             (self.size, self.size),
             method=resampling.LANCZOS,
         )
+
+        # Ajustes focados em painel LED de baixa resolucao (32x32),
+        # com contraste mais suave para evitar artefatos agressivos.
+        # 1) autocontraste mais sutil
+        # 2) ganho leve de saturacao e contraste
+        # 3) unsharp mask moderada para bordas
+        contrasted = ImageOps.autocontrast(fitted, cutoff=1)
+        saturated = ImageEnhance.Color(contrasted).enhance(1.05)
+        toned = ImageEnhance.Contrast(saturated).enhance(1.03)
+        sharpened = toned.filter(
+            ImageFilter.UnsharpMask(radius=0.9, percent=135, threshold=3)
+        )
+        return sharpened
 
     def _to_rgb565_bytes(self, image: Image.Image) -> bytes:
         rgb_bytes = image.tobytes()
