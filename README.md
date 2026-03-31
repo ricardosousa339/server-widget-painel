@@ -8,7 +8,7 @@ A aplicacao usa widgets orientados a objetos:
 
 - `BaseWidget`: classe abstrata com metodo `get_data()`.
 - `SpotifyWidget`: prioridade maxima (100) quando `currently_playing == true`.
-- `BookWidget`: prioridade intermediaria (50) para capa de livro, com sync manual/automatico via Skoob.
+- `BookWidget`: prioridade intermediaria (50) para capa de livro, com estado manual via API.
 - `ClockWidget`: fallback permanente (prioridade 0).
 
 Fluxo de decisao:
@@ -44,12 +44,6 @@ Edite `.env`:
 - `SPOTIFY_REFRESH_TOKEN`
 - `SPOTIFY_ACCESS_TOKEN`
 - `BOOK_STATE_PATH=data/current_book.json`
-- `SKOOB_SYNC_ENABLED=false`
-- `SKOOB_SYNC_INTERVAL_SECONDS=300`
-- `SKOOB_PROFILE_URL=`
-- `SKOOB_USER_ID=`
-- `SKOOB_AUTH_COOKIE=`
-- `SKOOB_READING_TYPES=2`
 
 ## Gerar tokens do Spotify (access + refresh)
 
@@ -90,80 +84,6 @@ Depois, copie a URL impressa no terminal e abra manualmente no navegador do seu 
 
 Se preferir fluxo manual, use `--print-auth-url` para apenas imprimir a URL de autorizacao,
 e depois rode novamente com `--code "<code_da_callback>"`.
-
-## Sync do Skoob (scraping)
-
-O backend suporta dois modos inspirados no fluxo do projeto `skoob-api`:
-
-1. **Scraping publico do perfil**: usa `SKOOB_PROFILE_URL` para buscar o livro em leitura no HTML do seu perfil.
-2. **API interna com cookie**: usa `SKOOB_USER_ID` + `SKOOB_AUTH_COOKIE` para consultar `/v1/bookcase/books/...` e identificar o item da estante marcado como leitura.
-
-Prioridade da sincronizacao:
-
-1. Tenta scraping de perfil (se `SKOOB_PROFILE_URL` estiver preenchido).
-2. Se nao encontrar leitura ativa e houver `SKOOB_USER_ID` + `SKOOB_AUTH_COOKIE`, usa a API interna.
-
-Sincronizacao automatica:
-
-- Se `SKOOB_SYNC_ENABLED=true`, o `BookWidget` tenta sincronizar em background durante chamadas de `/screen` respeitando `SKOOB_SYNC_INTERVAL_SECONDS`.
-- Mesmo com sync automatico desligado, voce pode sincronizar sob demanda via endpoint.
-
-## Como obter SKOOB_USER_ID e SKOOB_AUTH_COOKIE
-
-Se o modo publico (`SKOOB_PROFILE_URL`) funcionar para voce, nao precisa de `SKOOB_USER_ID` nem `SKOOB_AUTH_COOKIE`.
-Use os dois apenas para o fallback da API interna.
-
-Observacao:
-
-- Alguns perfis (incluindo rotas em `/pt/profile/...`) podem retornar HTTP 403 sem sessao ativa.
-- Nesses casos, configure ao menos `SKOOB_AUTH_COOKIE` e, idealmente, `SKOOB_USER_ID` para habilitar o fallback pela API interna.
-
-### Descobrir SKOOB_USER_ID
-
-Opcao A (quando a chamada aparece no Network):
-
-1. Entre no Skoob no navegador (logado).
-2. Abra DevTools (F12) e va em **Network**.
-3. Recarregue a pagina e filtre por `bookcase/books`.
-4. Abra a request parecida com:
-  `https://www.skoob.com.br/v1/bookcase/books/123456/shelf_id:0/limit:1000000`
-5. O numero apos `books/` e seu `SKOOB_USER_ID`.
-
-Opcao B (quando nao aparece no Network):
-
-1. Com o perfil aberto e logado, abra DevTools -> **Console**.
-2. Execute:
-
-```js
-const m = document.documentElement.outerHTML.match(/\/v1\/bookcase\/books\/(\d+)\//);
-m ? m[1] : "nao encontrado";
-```
-
-3. Se retornar um numero, ele e o `SKOOB_USER_ID`.
-
-Opcao C (sem descobrir manualmente):
-
-1. Configure `SKOOB_PROFILE_URL` + `SKOOB_AUTH_COOKIE`.
-2. Deixe `SKOOB_USER_ID` vazio.
-3. O backend tentara inferir o `user_id` automaticamente antes de chamar a API interna.
-
-### Descobrir SKOOB_AUTH_COOKIE
-
-Opcao recomendada (mais confiavel):
-
-1. No **Network**, abra qualquer request para `www.skoob.com.br` (nao precisa ser `bookcase/books`).
-2. Copie o header `Cookie` completo em **Request Headers**.
-3. Cole o valor inteiro em `SKOOB_AUTH_COOKIE`.
-
-Alternativa:
-
-1. DevTools -> **Application/Storage** -> **Cookies** -> `https://www.skoob.com.br`.
-2. Copie os cookies de sessao e monte uma string no formato `chave1=valor1; chave2=valor2`.
-
-Importante:
-
-- Nao versionar `.env` com cookie real.
-- Cookie de sessao expira; quando vencer, atualize `SKOOB_AUTH_COOKIE`.
 
 ## Executar servidor
 
@@ -246,72 +166,6 @@ Exemplo:
   "title": "Clean Code",
   "author": "Robert C. Martin",
   "cover_url": "https://..."
-}
-```
-
-### `POST /book/sync/skoob`
-Sincroniza o estado do livro com seu perfil Skoob.
-
-Corpo opcional (sobrescreve variaveis de ambiente apenas nesta chamada):
-
-```json
-{
-  "profile_url": "https://www.skoob.com.br/pt/profile/SEU_USUARIO",
-  "user_id": "12345",
-  "auth_cookie": "SEU_COOKIE_COMPLETO"
-}
-```
-
-Exemplo de resposta do `POST /book/sync/skoob`:
-
-```json
-{
-  "is_reading": true,
-  "title": "Nome do Livro",
-  "author": "Nome do Autor",
-  "cover_url": "https://...",
-  "sync_source": "skoob_profile",
-  "profile_url": "https://www.skoob.com.br/pt/profile/SEU_USUARIO",
-  "last_sync_ts": 1711886400
-}
-```
-
-### `GET /book/sync/skoob/status`
-Retorna status da sincronizacao e configuracao atual (sem expor valor do cookie).
-
-Exemplo de resposta:
-
-```json
-{
-  "sync": {
-    "configured": true,
-    "auto_sync_enabled": true,
-    "sync_interval_seconds": 300,
-    "last_attempt_ts": 1711886400,
-    "last_success_ts": 1711886400,
-    "last_error": "",
-    "last_source": "skoob_profile",
-    "last_is_reading": true,
-    "next_sync_ts": 1711886700,
-    "seconds_until_next_sync": 120,
-    "current_state": {
-      "is_reading": true,
-      "title": "Nome do Livro",
-      "author": "Nome do Autor",
-      "cover_url": "https://...",
-      "sync_source": "skoob_profile",
-      "profile_url": "https://www.skoob.com.br/pt/profile/usuario",
-      "last_sync_ts": 1711886400
-    }
-  },
-  "config": {
-    "profile_url": "https://www.skoob.com.br/pt/profile/usuario",
-    "user_id": "123456",
-    "auth_cookie_configured": true,
-    "reading_types": ["2"],
-    "sync_enabled": true,
-    "sync_interval_seconds": 300
-  }
 }
 ```
 
