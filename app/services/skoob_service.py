@@ -51,6 +51,7 @@ class SkoobSyncService:
         active_profile_url = (profile_url or self.profile_url).strip()
         active_user_id = (user_id or self.user_id).strip()
         active_auth_cookie = (auth_cookie or self.auth_cookie).strip()
+        profile_state: dict[str, Any] | None = None
 
         errors: list[str] = []
 
@@ -62,10 +63,20 @@ class SkoobSyncService:
                 )
                 if profile_state.get("is_reading"):
                     return profile_state
-                if not active_user_id or not active_auth_cookie:
-                    return profile_state
             except requests.RequestException as exc:
                 errors.append(f"Falha ao acessar perfil Skoob: {exc}")
+
+        if not active_user_id and active_profile_url and active_auth_cookie:
+            try:
+                active_user_id = self._resolve_user_id_from_profile(
+                    profile_url=active_profile_url,
+                    auth_cookie=active_auth_cookie,
+                )
+            except requests.RequestException as exc:
+                errors.append(f"Falha ao inferir user_id no perfil Skoob: {exc}")
+
+        if profile_state is not None and (not active_user_id or not active_auth_cookie):
+            return profile_state
 
         if active_user_id and active_auth_cookie:
             try:
@@ -313,6 +324,32 @@ class SkoobSyncService:
             normalized = self._normalize_cover_url(value, base_url=base_url)
             if normalized:
                 return normalized
+
+        return ""
+
+    def _resolve_user_id_from_profile(self, profile_url: str, auth_cookie: str) -> str:
+        response = requests.get(
+            profile_url,
+            timeout=self.timeout_seconds,
+            headers=self._headers(auth_cookie=auth_cookie),
+        )
+        response.raise_for_status()
+
+        html = response.text
+        patterns = (
+            r"/v1/bookcase/books/(\d+)/",
+            r"bookcase/books/(\d+)/",
+            r'"user_id"\s*:\s*"?(\d+)"?',
+            r'"id_usuario"\s*:\s*"?(\d+)"?',
+            r"userId\s*[:=]\s*'?(\d+)'?",
+            r"idUsuario\s*[:=]\s*'?(\d+)'?",
+        )
+
+        for pattern in patterns:
+            match = re.search(pattern, html, flags=re.IGNORECASE)
+            if not match:
+                continue
+            return match.group(1).strip()
 
         return ""
 

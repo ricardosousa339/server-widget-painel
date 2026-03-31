@@ -80,6 +80,8 @@ Observacao:
 
 ### Descobrir SKOOB_USER_ID
 
+Opcao A (quando a chamada aparece no Network):
+
 1. Entre no Skoob no navegador (logado).
 2. Abra DevTools (F12) e va em **Network**.
 3. Recarregue a pagina e filtre por `bookcase/books`.
@@ -87,12 +89,31 @@ Observacao:
   `https://www.skoob.com.br/v1/bookcase/books/123456/shelf_id:0/limit:1000000`
 5. O numero apos `books/` e seu `SKOOB_USER_ID`.
 
+Opcao B (quando nao aparece no Network):
+
+1. Com o perfil aberto e logado, abra DevTools -> **Console**.
+2. Execute:
+
+```js
+const m = document.documentElement.outerHTML.match(/\/v1\/bookcase\/books\/(\d+)\//);
+m ? m[1] : "nao encontrado";
+```
+
+3. Se retornar um numero, ele e o `SKOOB_USER_ID`.
+
+Opcao C (sem descobrir manualmente):
+
+1. Configure `SKOOB_PROFILE_URL` + `SKOOB_AUTH_COOKIE`.
+2. Deixe `SKOOB_USER_ID` vazio.
+3. O backend tentara inferir o `user_id` automaticamente antes de chamar a API interna.
+
 ### Descobrir SKOOB_AUTH_COOKIE
 
 Opcao recomendada (mais confiavel):
 
-1. Na mesma request da secao anterior, copie o header `Cookie` completo em **Request Headers**.
-2. Cole o valor inteiro em `SKOOB_AUTH_COOKIE`.
+1. No **Network**, abra qualquer request para `www.skoob.com.br` (nao precisa ser `bookcase/books`).
+2. Copie o header `Cookie` completo em **Request Headers**.
+3. Cole o valor inteiro em `SKOOB_AUTH_COOKIE`.
 
 Alternativa:
 
@@ -146,25 +167,12 @@ Query param opcional:
 - `img_mode=rgb_array`
 
 Exemplo de resposta com Spotify ativo:
-  "profile_url": "https://www.skoob.com.br/pt/profile/SEU_USUARIO",
+
 ```json
 {
   "widget": "spotify",
   "priority": 100,
   "ts": 1711886400,
-Exemplo de resposta do `POST /book/sync/skoob`:
-
-```json
-{
-  "is_reading": true,
-  "title": "Nome do Livro",
-  "author": "Nome do Autor",
-  "cover_url": "https://...",
-  "sync_source": "skoob_profile",
-  "profile_url": "https://www.skoob.com.br/pt/profile/SEU_USUARIO",
-  "last_sync_ts": 1711886400
-}
-```
   "data": {
     "currently_playing": true,
     "track": "Song Name",
