@@ -45,6 +45,22 @@ Quando o widget recebido for:
 - `spotify` ou `book`: renderiza a capa 32x32 e um label lateral.
 - `clock`: renderiza hora/data como fallback.
 
+## Fallback de relogio local (quando API cair)
+
+O sketch implementa fallback automatico para relogio local no ESP32 quando a API fica indisponivel por alguns segundos.
+
+- Fonte de hora: NTP (`pool.ntp.org`, `time.google.com`)
+- Comportamento: se `/screen` falhar por tempo suficiente, o painel passa a mostrar hora/data locais
+- Recuperacao: quando a API volta, o sketch retorna automaticamente para widgets remotos
+
+Configuracao de fuso horario no sketch:
+
+- `TZ_INFO = "UTC0"` (padrao)
+- Exemplo Brasil (BRT): `TZ_INFO = "BRT3"`
+
+Observacao: o fallback local depende de rede para sincronizar NTP ao menos uma vez. Depois da sincronizacao inicial,
+o relogio continua funcionando localmente mesmo com falhas temporarias da API.
+
 ## Dica de rede
 
 Se o backend estiver no Windows, libere a porta 8000 no firewall (como descrito no README raiz) e use o IP local da maquina no `API_HOST`.

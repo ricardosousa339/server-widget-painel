@@ -3,9 +3,11 @@
 #include <ArduinoJson.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 #include <mbedtls/base64.h>
+#include <time.h>
 
 #include <vector>
 #include <cstring>
+#include <cctype>
 
 const char* WIFI_SSID = "SEU_WIFI";
 const char* WIFI_PASSWORD = "SUA_SENHA";
@@ -29,9 +31,16 @@ constexpr uint32_t SOURCE_POLL_INTERVAL_MS = 1500;
 // Render local em alta frequencia para scroll suave pixel-a-pixel.
 constexpr uint32_t RENDER_INTERVAL_MS = 33;
 constexpr uint32_t HTTP_TIMEOUT_MS = 1800;
+constexpr uint32_t API_STALE_TIMEOUT_MS = 5000;
 constexpr size_t JSON_DOC_CAPACITY = 16 * 1024;
 constexpr uint32_t TITLE_SCROLL_TICK_MS = 70;
 constexpr uint32_t AUTHOR_SCROLL_TICK_MS = 90;
+constexpr uint32_t NTP_RETRY_INTERVAL_MS = 5000;
+constexpr uint32_t NTP_RESYNC_INTERVAL_MS = 3600000;
+
+const char* TZ_INFO = "UTC0";  // Exemplo BRT: "BRT3"
+const char* NTP_SERVER_1 = "pool.ntp.org";
+const char* NTP_SERVER_2 = "time.google.com";
 
 HUB75_I2S_CFG mxconfig(PANEL_WIDTH, PANEL_HEIGHT, PANEL_CHAIN);
 MatrixPanel_I2S_DMA* display = nullptr;
@@ -70,11 +79,18 @@ uint32_t gAuthorStartedMs = 0;
 uint32_t lastSourcePollMs = 0;
 uint32_t lastRenderMs = 0;
 uint32_t lastSourceSuccessMs = 0;
+uint32_t lastNtpAttemptMs = 0;
+uint32_t lastNtpResyncMs = 0;
+bool ntpConfigured = false;
+bool ntpSynced = false;
 
 void connectWiFi();
 bool fetchScreenPayload(String& payload);
 bool updateStateFromPayload(const String& payload);
 void renderCurrentFrame(uint32_t nowMs);
+bool renderLocalClockFallback();
+bool getLocalClockStrings(String& timeOut, String& dateOut, String& weekdayOut);
+void maintainNtpClock(uint32_t nowMs);
 void renderClockFrame();
 void renderMediaFrame(bool isSpotify, uint32_t nowMs);
 void drawCoverScaled(int16_t x0, int16_t y0);
@@ -128,6 +144,7 @@ void loop() {
   }
 
   const uint32_t now = millis();
+  maintainNtpClock(now);
 
   if (now - lastSourcePollMs >= SOURCE_POLL_INTERVAL_MS) {
     lastSourcePollMs = now;
@@ -164,6 +181,9 @@ void connectWiFi() {
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("WiFi conectado. IP local: %s\n", WiFi.localIP().toString().c_str());
+    configTzTime(TZ_INFO, NTP_SERVER_1, NTP_SERVER_2);
+    ntpConfigured = true;
+    lastNtpAttemptMs = millis();
     renderStatus("WiFi OK", WiFi.localIP().toString().c_str());
     delay(400);
   } else {
@@ -265,6 +285,14 @@ void renderCurrentFrame(uint32_t nowMs) {
     return;
   }
 
+  const bool apiStale = (lastSourceSuccessMs == 0) || ((nowMs - lastSourceSuccessMs) > API_STALE_TIMEOUT_MS);
+  if (apiStale) {
+    if (!renderLocalClockFallback()) {
+      renderStatus("API OFF", "NTP sync...");
+    }
+    return;
+  }
+
   if (gState.widget == WidgetSpotify) {
     renderMediaFrame(true, nowMs);
     return;
@@ -277,11 +305,6 @@ void renderCurrentFrame(uint32_t nowMs) {
 
   if (gState.widget == WidgetClock) {
     renderClockFrame();
-    return;
-  }
-
-  if (lastSourceSuccessMs == 0 || nowMs - lastSourceSuccessMs > 6000) {
-    renderStatus("Aguardando", "/screen");
     return;
   }
 
@@ -300,6 +323,98 @@ void renderClockFrame() {
 
   display->setCursor(34, 21);
   display->print(gState.dateText);
+}
+
+void maintainNtpClock(uint32_t nowMs) {
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+
+  if (!ntpConfigured) {
+    configTzTime(TZ_INFO, NTP_SERVER_1, NTP_SERVER_2);
+    ntpConfigured = true;
+    lastNtpAttemptMs = nowMs;
+    return;
+  }
+
+  const time_t epoch = time(nullptr);
+  if (epoch > 1700000000) {
+    ntpSynced = true;
+  }
+
+  if (!ntpSynced) {
+    if (nowMs - lastNtpAttemptMs >= NTP_RETRY_INTERVAL_MS) {
+      configTzTime(TZ_INFO, NTP_SERVER_1, NTP_SERVER_2);
+      lastNtpAttemptMs = nowMs;
+    }
+    return;
+  }
+
+  if (nowMs - lastNtpResyncMs >= NTP_RESYNC_INTERVAL_MS) {
+    configTzTime(TZ_INFO, NTP_SERVER_1, NTP_SERVER_2);
+    lastNtpResyncMs = nowMs;
+  }
+}
+
+bool getLocalClockStrings(String& timeOut, String& dateOut, String& weekdayOut) {
+  const time_t epoch = time(nullptr);
+  if (epoch <= 1700000000) {
+    return false;
+  }
+
+  struct tm localTm;
+  if (!localtime_r(&epoch, &localTm)) {
+    return false;
+  }
+
+  char hhmm[6] = {0};
+  char date[6] = {0};
+  char weekday[8] = {0};
+
+  if (strftime(hhmm, sizeof(hhmm), "%H:%M", &localTm) == 0) {
+    return false;
+  }
+  if (strftime(date, sizeof(date), "%d/%m", &localTm) == 0) {
+    return false;
+  }
+  if (strftime(weekday, sizeof(weekday), "%a", &localTm) == 0) {
+    return false;
+  }
+
+  for (size_t i = 0; weekday[i] != '\0'; i++) {
+    weekday[i] = static_cast<char>(toupper(static_cast<unsigned char>(weekday[i])));
+  }
+
+  timeOut = hhmm;
+  dateOut = date;
+  weekdayOut = weekday;
+  return true;
+}
+
+bool renderLocalClockFallback() {
+  String hhmm;
+  String date;
+  String weekday;
+  if (!getLocalClockStrings(hhmm, date, weekday)) {
+    return false;
+  }
+
+  display->clearScreen();
+  display->setTextColor(display->color565(255, 255, 255));
+  display->setCursor(3, 3);
+  display->print(hhmm);
+
+  display->setCursor(3, 21);
+  display->print(weekday);
+
+  display->setCursor(34, 21);
+  display->print(date);
+
+  // Indicador discreto de fallback local quando a API está indisponivel.
+  display->setTextColor(display->color565(255, 120, 120));
+  display->setCursor(52, 3);
+  display->print("L");
+  return true;
 }
 
 void renderMediaFrame(bool isSpotify, uint32_t nowMs) {
