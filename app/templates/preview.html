@@ -669,29 +669,57 @@
             drawLedOuterBorder(dominant);
         }
 
-        async function render() {
+        let latestPayload = null;
+        let animationId = null;
+
+        function drawFromPayload(payload) {
+            if (!payload) {
+                clearCanvas();
+                return;
+            }
+
+            const widget = payload.widget || 'none';
+            const data = payload.data || {};
+
+            if (widget === 'clock') {
+                drawClock(data);
+            } else if (widget === 'spotify') {
+                drawMediaLike(data, 'spotify');
+            } else if (widget === 'book') {
+                drawMediaLike(data, 'book');
+            } else {
+                clearCanvas();
+                ctx.fillStyle = '#ff7f7f';
+                ctx.font = `7px ${CANVAS_FONT}`;
+                ctx.fillText('sem widget ativo', 6, 18);
+            }
+        }
+
+        function startAnimationLoop() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+
+            const loop = () => {
+                drawFromPayload(latestPayload);
+                animationId = requestAnimationFrame(loop);
+            };
+
+            animationId = requestAnimationFrame(loop);
+        }
+
+        async function fetchScreenData() {
             try {
                 const res = await fetch('/screen?img_mode=rgb565_base64', { cache: 'no-store' });
                 const payload = await res.json();
                 const widget = payload.widget || 'none';
                 const data = payload.data || {};
 
+                latestPayload = payload;
+
                 widgetEl.textContent = widget;
                 statusEl.textContent = `Atualizado em ${new Date().toLocaleTimeString()}`;
                 detailsEl.textContent = JSON.stringify(data, null, 2).slice(0, 300);
-
-                if (widget === 'clock') {
-                    drawClock(data);
-                } else if (widget === 'spotify') {
-                    drawMediaLike(data, 'spotify');
-                } else if (widget === 'book') {
-                    drawMediaLike(data, 'book');
-                } else {
-                    clearCanvas();
-                    ctx.fillStyle = '#ff7f7f';
-                    ctx.font = `7px ${CANVAS_FONT}`;
-                    ctx.fillText('sem widget ativo', 6, 18);
-                }
             } catch (err) {
                 widgetEl.textContent = 'erro';
                 statusEl.textContent = 'Falha ao buscar /screen';
@@ -702,7 +730,7 @@
         function startTimer() {
             if (timer) clearInterval(timer);
             const interval = Number(refreshMsEl.value || 2000);
-            timer = setInterval(render, interval);
+            timer = setInterval(fetchScreenData, interval);
         }
 
         async function waitForCanvasFont() {
@@ -719,13 +747,14 @@
 
         async function initPreview() {
             await waitForCanvasFont();
-            render();
+            await fetchScreenData();
+            startAnimationLoop();
             startTimer();
         }
 
         refreshMsEl.addEventListener('change', startTimer);
-        refreshNowEl.addEventListener('click', render);
-        borderModeEl.addEventListener('change', render);
+        refreshNowEl.addEventListener('click', fetchScreenData);
+        borderModeEl.addEventListener('change', () => drawFromPayload(latestPayload));
 
         initPreview();
     </script>
