@@ -268,6 +268,26 @@
             return visible.join('').trimEnd();
         }
 
+        function measureTextWidth(text, font) {
+            ctx.save();
+            ctx.font = font;
+            const width = ctx.measureText(String(text || '')).width;
+            ctx.restore();
+            return width;
+        }
+
+        function compactArtistName(artist) {
+            const normalized = String(artist || '').trim().replace(/\s+/g, ' ');
+            if (!normalized) return '-';
+
+            const words = normalized.split(' ');
+            if (words.length < 2) return words[0];
+
+            const secondInitial = (words[1] || '').charAt(0);
+            if (!secondInitial) return words[0];
+            return `${words[0]} ${secondInitial}.`;
+        }
+
         function drawMonoText(text, x, y, opts = {}) {
             const {
                 color = '#f5f7ff',
@@ -306,8 +326,17 @@
             ctx.restore();
         }
 
-        function forceMonochrome(threshold = 96) {
-            const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        function forceMonochromeRegion(x, y, w, h, threshold = 96) {
+            const rx = Math.max(0, Math.floor(x));
+            const ry = Math.max(0, Math.floor(y));
+            const rw = Math.min(CANVAS_WIDTH - rx, Math.ceil(w));
+            const rh = Math.min(CANVAS_HEIGHT - ry, Math.ceil(h));
+
+            if (rw <= 0 || rh <= 0) {
+                return;
+            }
+
+            const imageData = ctx.getImageData(rx, ry, rw, rh);
             const px = imageData.data;
 
             for (let i = 0; i < px.length; i += 4) {
@@ -321,7 +350,11 @@
                 px[i + 3] = 255;
             }
 
-            ctx.putImageData(imageData, 0, 0);
+            ctx.putImageData(imageData, rx, ry);
+        }
+
+        function forceMonochrome(threshold = 96) {
+            forceMonochromeRegion(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, threshold);
         }
 
         function drawClock(data) {
@@ -482,7 +515,15 @@
             const titleFont = `8px ${CANVAS_FONT}`;
             const authorFont = `8px ${CANVAS_FONT}`;
             const title = marqueeTextByPixels(data.track || data.title || '-', textWidth, titleFont, 280);
-            const author = marqueeTextByPixels(data.artist || data.author || '-', textWidth, authorFont, 380);
+            const rawAuthor = data.artist || data.author || '-';
+            let author = marqueeTextByPixels(rawAuthor, textWidth, authorFont, 380);
+
+            if (label === 'spotify' && data.artist) {
+                const compact = compactArtistName(data.artist);
+                author = measureTextWidth(compact, authorFont) <= textWidth
+                    ? compact
+                    : marqueeTextByPixels(compact, textWidth, authorFont, 380);
+            }
 
             drawMonoText(title, textX, 14, {
                 font: titleFont,
@@ -492,6 +533,10 @@
                 font: authorFont,
                 clipWidth: textWidth,
             });
+
+            // Remove antialiasing apenas nas linhas de texto (mantém capa, barra e bordas como estão)
+            forceMonochromeRegion(textX, 6, textWidth, 10, 96);   // título (baseline y=14)
+            forceMonochromeRegion(textX, 18, textWidth, 10, 96);  // artista (baseline y=26)
 
             if (label === 'spotify' && data.duration_ms > 0) {
                 const progressRatio = Math.max(0, Math.min(1, (data.progress_ms || 0) / data.duration_ms));
