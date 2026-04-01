@@ -6,6 +6,7 @@ from pathlib import Path
 from app.config import get_settings
 from app.services.frame_renderer import FrameRenderer
 from app.services.image_service import ImageProcessor
+from app.services.screen_payload_cache import ScreenPayloadCache
 from app.services.widget_manager import WidgetManager
 from app.widgets.book_widget import BookWidget
 from app.widgets.clock_widget import ClockWidget
@@ -38,6 +39,10 @@ frame_renderer = FrameRenderer(
     height=32,
     font_path=ASSETS_DIR / "minecraftia.ttf",
     border_mode="strong",
+)
+frame_source_cache = ScreenPayloadCache(
+    fetch_payload=lambda: widget_manager.get_screen_payload(image_mode="rgb565_base64"),
+    refresh_interval_ms=settings.frame_source_refresh_ms,
 )
 
 

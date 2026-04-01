@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 
 from app.dependencies import (
     book_widget,
+    frame_source_cache,
     frame_renderer,
     load_frame_preview_template,
     load_preview_template,
@@ -32,6 +33,7 @@ def root() -> dict[str, Any]:
         "docs": "/docs",
         "health": "/health",
         "screen": "/screen",
+        "screen_frame": "/screen/frame",
         "preview": "/preview/painel",
         "preview_frame": "/preview/frame",
     }
@@ -63,9 +65,16 @@ async def screen_frame(
         default=None,
         description="Timestamp em ms para gerar frame em ponto especifico da animacao",
     ),
+    refresh_source: bool = Query(
+        default=False,
+        description="Forca refresh da fonte de dados antes de renderizar frame",
+    ),
 ) -> dict[str, Any]:
-    payload = await widget_manager.get_screen_payload(image_mode="rgb565_base64")
-    return frame_renderer.render_payload(payload, now_ms=at_ms)
+    payload = await frame_source_cache.get_payload(force_refresh=refresh_source)
+    response = frame_renderer.render_payload(payload, now_ms=at_ms)
+    response["source_age_ms"] = frame_source_cache.age_ms()
+    response["source_refresh_ms"] = frame_source_cache.refresh_interval_ms
+    return response
 
 
 @router.get("/book/current")

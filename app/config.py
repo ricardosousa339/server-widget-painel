@@ -12,6 +12,7 @@ load_dotenv()
 class Settings:
     image_size: int = int(os.getenv("IMAGE_SIZE", "32"))
     request_timeout_seconds: float = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "6"))
+    frame_source_refresh_ms: int = int(os.getenv("FRAME_SOURCE_REFRESH_MS", "1500"))
 
     spotify_client_id: str = os.getenv("SPOTIPY_CLIENT_ID", "")
     spotify_client_secret: str = os.getenv("SPOTIPY_CLIENT_SECRET", "")

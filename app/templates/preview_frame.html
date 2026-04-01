@@ -134,11 +134,17 @@
                 <p class="title">Frame</p>
                 <p id="frameInfo" class="value">-</p>
             </div>
+            <div>
+                <p class="title">Cache da fonte</p>
+                <p id="sourceInfo" class="value">-</p>
+            </div>
             <div class="toolbar">
                 <button id="refreshNow">Atualizar agora</button>
                 <select id="refreshMs">
+                    <option value="100">0.1s</option>
+                    <option value="200" selected>0.2s</option>
                     <option value="500">0.5s</option>
-                    <option value="1000" selected>1s</option>
+                    <option value="1000">1s</option>
                     <option value="2000">2s</option>
                 </select>
             </div>
@@ -152,6 +158,7 @@
         const widgetNameEl = document.getElementById('widgetName');
         const statusEl = document.getElementById('status');
         const frameInfoEl = document.getElementById('frameInfo');
+        const sourceInfoEl = document.getElementById('sourceInfo');
         const refreshNowEl = document.getElementById('refreshNow');
         const refreshMsEl = document.getElementById('refreshMs');
 
@@ -193,10 +200,13 @@
                 const h = frame.h || 0;
                 const enc = frame.enc || '-';
                 const data = frame.data || '';
+                const sourceAgeMs = Number(payload.source_age_ms || 0);
+                const sourceRefreshMs = Number(payload.source_refresh_ms || 0);
 
                 widgetNameEl.textContent = widget;
                 statusEl.textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
                 frameInfoEl.textContent = `${w}x${h} | ${enc}`;
+                sourceInfoEl.textContent = `${sourceAgeMs}ms (refresh ${sourceRefreshMs}ms)`;
 
                 if (enc !== 'rgb565_base64' || !data || w <= 0 || h <= 0) {
                     clearCanvas();
@@ -211,6 +221,7 @@
                 widgetNameEl.textContent = 'erro';
                 statusEl.textContent = 'Falha no /screen/frame';
                 frameInfoEl.textContent = String(error);
+                sourceInfoEl.textContent = '-';
             }
         }
 
@@ -219,7 +230,7 @@
                 clearInterval(timer);
             }
 
-            const interval = Number(refreshMsEl.value || 1000);
+            const interval = Number(refreshMsEl.value || 200);
             timer = setInterval(fetchFrame, interval);
         }
 
