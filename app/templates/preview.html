@@ -220,6 +220,7 @@
         const CANVAS_HEIGHT = 32;
 
         let timer = null;
+    const marqueeStateByKey = new Map();
 
         function clearCanvas() {
             ctx.fillStyle = '#000';
@@ -239,39 +240,69 @@
             return looped.slice(start, start + maxLen);
         }
 
-        function marqueeTextByPixels(text, maxWidthPx, font, tickMs = 380) {
+        function marqueeTextByPixels(text, maxWidthPx, font, tickMs = 380, opts = {}) {
+            const {
+                gapChars = 3,
+                endBlackoutTicks = 0,
+                letterSpacing = 0,
+                stepPx = 1,
+                stateKey = null,
+            } = opts;
             const source = String(text || '-');
-            if (!source) return '-';
+            if (!source) return { text: '-', offsetPx: 0 };
 
-            ctx.save();
-            ctx.font = font;
-
-            if (ctx.measureText(source).width <= maxWidthPx) {
-                ctx.restore();
-                return source;
+            const textWidthPx = measureTextWidth(source, font, letterSpacing);
+            if (textWidthPx <= maxWidthPx) {
+                return { text: source, offsetPx: 0 };
             }
 
-            const padded = `${source}   `;
-            const start = Math.floor(Date.now() / tickMs) % padded.length;
-            const looped = padded + padded;
-            const visible = [];
+            const safeGapChars = Math.max(0, gapChars);
+            const padded = `${source}${' '.repeat(safeGapChars)}`;
+            const gapWidthPx = measureTextWidth(' '.repeat(safeGapChars), font, letterSpacing);
+            const travelPx = Math.max(1, Math.ceil(textWidthPx + gapWidthPx));
+            const safeStepPx = Math.max(1, Math.floor(stepPx));
+            const blackoutPx = Math.max(0, Math.floor(endBlackoutTicks)) * safeStepPx;
+            const cyclePx = travelPx + blackoutPx;
+            const safeTickMs = Math.max(1, Math.floor(tickMs));
+            const now = Date.now();
+            const effectiveKey = stateKey || `marquee:${font}:${maxWidthPx}:${source}`;
+            const state = marqueeStateByKey.get(effectiveKey);
 
-            for (let i = 0; i < looped.length; i += 1) {
-                const candidate = visible.join('') + looped[start + i];
-                if (ctx.measureText(candidate).width > maxWidthPx) {
-                    break;
-                }
-                visible.push(looped[start + i]);
+            if (!state || state.source !== source) {
+                marqueeStateByKey.set(effectiveKey, {
+                    source,
+                    startedAt: now,
+                });
             }
 
-            ctx.restore();
-            return visible.join('').trimEnd();
+            const activeState = marqueeStateByKey.get(effectiveKey);
+            const tickIndex = Math.floor((now - activeState.startedAt) / safeTickMs);
+            const phasePx = (tickIndex * safeStepPx) % cyclePx;
+
+            if (phasePx >= travelPx) {
+                return { text: '', offsetPx: 0 };
+            }
+
+            return {
+                text: padded,
+                offsetPx: phasePx,
+            };
         }
 
-        function measureTextWidth(text, font) {
+        function measureTextWidth(text, font, letterSpacing = 0) {
             ctx.save();
             ctx.font = font;
-            const width = ctx.measureText(String(text || '')).width;
+            const source = String(text || '');
+            let width = 0;
+
+            if (letterSpacing > 0 && source.length > 0) {
+                for (const ch of source) {
+                    width += ctx.measureText(ch).width;
+                }
+                width += Math.max(0, source.length - 1) * letterSpacing;
+            } else {
+                width = ctx.measureText(source).width;
+            }
             ctx.restore();
             return width;
         }
@@ -280,6 +311,7 @@
             const {
                 font = `8px ${CANVAS_FONT}`,
                 clipWidth = null,
+                clipX = null,
                 threshold = 96,
                 letterSpacing = 0,
             } = opts;
@@ -302,7 +334,10 @@
             const ascent = Math.ceil(metrics.actualBoundingBoxAscent || 7);
             const descent = Math.ceil(metrics.actualBoundingBoxDescent || 2);
             const measuredWidth = Math.ceil(letterSpacing > 0 ? spacedWidth : (metrics.width || 0));
-            const renderWidth = Math.max(1, clipWidth != null ? Math.min(clipWidth, measuredWidth) : measuredWidth);
+            // Importante: renderizar a largura completa do texto no off-canvas.
+            // O recorte visual deve ser feito apenas no canvas principal (clipX/clipWidth),
+            // senão letras podem ser cortadas durante a rolagem horizontal.
+            const renderWidth = Math.max(1, measuredWidth);
             const renderHeight = Math.max(1, ascent + descent + 2);
 
             const off = document.createElement('canvas');
@@ -343,7 +378,15 @@
 
             const dstX = Math.floor(x);
             const dstY = Math.floor(baselineY - ascent - 1);
+            ctx.save();
+            if (clipWidth != null) {
+                const regionX = Math.floor(clipX != null ? clipX : x);
+                ctx.beginPath();
+                ctx.rect(regionX, -32, clipWidth, 96);
+                ctx.clip();
+            }
             ctx.drawImage(off, dstX, dstY);
+            ctx.restore();
         }
 
         function compactArtistName(artist) {
@@ -570,6 +613,10 @@
             const coverWidth = 26;
             const textX = coverWidth + 1;
             const textWidth = CANVAS_WIDTH - textX;
+            const titleX = textX + 1;
+            const titleWidth = Math.max(1, CANVAS_WIDTH - titleX);
+            const authorX = textX + 1;
+            const authorWidth = Math.max(1, CANVAS_WIDTH - authorX);
             const dominant = drawCover(data.cover, coverWidth);
 
             ctx.fillStyle = 'rgba(0,0,0,.78)';
@@ -578,26 +625,35 @@
             // Em 64x32 priorizamos apenas o essencial para legibilidade. (Base Alphabetic)
             const titleFont = `8px ${CANVAS_FONT}`;
             const authorFont = `8px ${CANVAS_FONT}`;
-            const title = marqueeTextByPixels(data.track || data.title || '-', textWidth, titleFont, 280);
+            const titleState = marqueeTextByPixels(data.track || data.title || '-', titleWidth, titleFont, 280, {
+                endBlackoutTicks: 2,
+                letterSpacing: 1,
+                stateKey: 'media:title',
+            });
             const rawAuthor = data.artist || data.author || '-';
-            let author = marqueeTextByPixels(rawAuthor, textWidth, authorFont, 380);
+            let authorSource = rawAuthor;
 
             if (label === 'spotify' && data.artist) {
                 const compact = compactArtistName(data.artist);
-                author = measureTextWidth(compact, authorFont) <= textWidth
-                    ? compact
-                    : marqueeTextByPixels(compact, textWidth, authorFont, 380);
+                authorSource = compact;
             }
 
-            drawBinaryText(title, textX, 14, {
+            const authorState = marqueeTextByPixels(authorSource, authorWidth, authorFont, 380, {
+                letterSpacing: 1,
+                stateKey: 'media:author',
+            });
+
+            drawBinaryText(titleState.text, titleX - titleState.offsetPx, 14, {
                 font: titleFont,
-                clipWidth: textWidth,
+                clipX: titleX,
+                clipWidth: titleWidth,
                 threshold: 96,
                 letterSpacing: 1,
             });
-            drawBinaryText(author, textX, 26, {
+            drawBinaryText(authorState.text, authorX - authorState.offsetPx, 26, {
                 font: authorFont,
-                clipWidth: textWidth,
+                clipX: authorX,
+                clipWidth: authorWidth,
                 threshold: 96,
                 letterSpacing: 1,
             });

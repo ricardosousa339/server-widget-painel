@@ -34,6 +34,17 @@ function run() {
     'Capa deve ser centralizada verticalmente no painel'
   );
 
+  // Regressão: drawBinaryText não pode truncar largura do off-canvas por clipWidth
+  expectRegex(
+    /const\s+renderWidth\s*=\s*Math\.max\(1,\s*measuredWidth\);/m,
+    'drawBinaryText deve renderizar largura completa do texto no off-canvas para evitar perda de letras'
+  );
+
+  assert(
+    !/Math\.min\(clipWidth,\s*measuredWidth\)/m.test(source),
+    'drawBinaryText não deve limitar renderWidth por clipWidth (regressão de truncamento)'
+  );
+
   console.log('✓ Guard test: regras de visibilidade de texto e capa quadrada presentes no preview.');
 }
 
