@@ -5,7 +5,13 @@ from typing import Any
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
-from app.dependencies import book_widget, load_preview_template, widget_manager
+from app.dependencies import (
+    book_widget,
+    frame_renderer,
+    load_frame_preview_template,
+    load_preview_template,
+    widget_manager,
+)
 from app.schemas import BookStateUpdate
 from app.services.image_service import ImageMode
 
@@ -27,12 +33,18 @@ def root() -> dict[str, Any]:
         "health": "/health",
         "screen": "/screen",
         "preview": "/preview/painel",
+        "preview_frame": "/preview/frame",
     }
 
 
 @router.get("/preview/painel", response_class=HTMLResponse)
 def preview_painel() -> HTMLResponse:
     return HTMLResponse(content=load_preview_template())
+
+
+@router.get("/preview/frame", response_class=HTMLResponse)
+def preview_frame() -> HTMLResponse:
+    return HTMLResponse(content=load_frame_preview_template())
 
 
 @router.get("/screen")
@@ -43,6 +55,17 @@ async def screen(
     ),
 ) -> dict[str, Any]:
     return await widget_manager.get_screen_payload(image_mode=img_mode)
+
+
+@router.get("/screen/frame")
+async def screen_frame(
+    at_ms: int | None = Query(
+        default=None,
+        description="Timestamp em ms para gerar frame em ponto especifico da animacao",
+    ),
+) -> dict[str, Any]:
+    payload = await widget_manager.get_screen_payload(image_mode="rgb565_base64")
+    return frame_renderer.render_payload(payload, now_ms=at_ms)
 
 
 @router.get("/book/current")

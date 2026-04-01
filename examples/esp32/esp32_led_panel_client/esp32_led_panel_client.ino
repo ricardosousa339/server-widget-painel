@@ -12,14 +12,14 @@ const char* WIFI_PASSWORD = "SUA_SENHA";
 
 const char* API_HOST = "192.168.0.100";
 const uint16_t API_PORT = 8000;
-const char* API_SCREEN_PATH = "/screen?img_mode=rgb565_base64";
+const char* API_SCREEN_PATH = "/screen/frame";
 
 constexpr uint16_t PANEL_WIDTH = 64;
 constexpr uint16_t PANEL_HEIGHT = 32;
 constexpr uint16_t PANEL_CHAIN = 1;
 constexpr uint16_t COVER_SIZE = 32;
 
-constexpr uint32_t POLL_INTERVAL_MS = 2000;
+constexpr uint32_t POLL_INTERVAL_MS = 1000;
 constexpr uint32_t HTTP_TIMEOUT_MS = 4500;
 constexpr size_t JSON_DOC_CAPACITY = 16 * 1024;
 
@@ -31,8 +31,7 @@ uint32_t lastPollMs = 0;
 void connectWiFi();
 bool fetchScreenPayload(String& payload);
 bool renderPayload(const String& payload);
-bool renderCover(const JsonObjectConst& cover, const char* label);
-void renderClock(const JsonObjectConst& data);
+bool renderFrame(const JsonObjectConst& frame);
 void renderStatus(const char* line1, const char* line2 = "");
 bool decodeBase64(const char* encoded, std::vector<uint8_t>& out);
 void drawRgb565Buffer(const std::vector<uint8_t>& rgb565, int16_t x0, int16_t y0, uint16_t w, uint16_t h);
@@ -144,37 +143,28 @@ bool renderPayload(const String& payload) {
     return false;
   }
 
-  const char* widget = doc["widget"] | "none";
-  const JsonObjectConst data = doc["data"].as<JsonObjectConst>();
-
-  if ((strcmp(widget, "spotify") == 0 || strcmp(widget, "book") == 0) && data["cover"].is<JsonObjectConst>()) {
-    const JsonObjectConst cover = data["cover"].as<JsonObjectConst>();
-    const char* label = strcmp(widget, "spotify") == 0 ? "SPOT" : "BOOK";
-    return renderCover(cover, label);
+  if (!doc["frame"].is<JsonObjectConst>()) {
+    Serial.println("Payload sem objeto frame");
+    return false;
   }
 
-  if (strcmp(widget, "clock") == 0) {
-    renderClock(data);
-    return true;
-  }
-
-  renderStatus("Unknown widget", widget);
-  return false;
+  const JsonObjectConst frame = doc["frame"].as<JsonObjectConst>();
+  return renderFrame(frame);
 }
 
-bool renderCover(const JsonObjectConst& cover, const char* label) {
-  const uint16_t w = cover["w"] | 0;
-  const uint16_t h = cover["h"] | 0;
-  const char* enc = cover["enc"] | "";
-  const char* base64Data = cover["data"] | "";
+bool renderFrame(const JsonObjectConst& frame) {
+  const uint16_t w = frame["w"] | 0;
+  const uint16_t h = frame["h"] | 0;
+  const char* enc = frame["enc"] | "";
+  const char* base64Data = frame["data"] | "";
 
   if (strcmp(enc, "rgb565_base64") != 0) {
     Serial.printf("Encoding nao suportado no sketch: %s\n", enc);
     return false;
   }
 
-  if (w != COVER_SIZE || h != COVER_SIZE) {
-    Serial.printf("Dimensao de capa inesperada: %ux%u\n", w, h);
+  if (w != PANEL_WIDTH || h != PANEL_HEIGHT) {
+    Serial.printf("Dimensao de frame inesperada: %ux%u\n", w, h);
     return false;
   }
 
@@ -186,46 +176,17 @@ bool renderCover(const JsonObjectConst& cover, const char* label) {
 
   const size_t expected = static_cast<size_t>(w) * static_cast<size_t>(h) * 2;
   if (rgb565.size() != expected) {
-    Serial.printf("Tamanho RGB565 inesperado: %u (esperado %u)\n", static_cast<unsigned>(rgb565.size()), static_cast<unsigned>(expected));
+    Serial.printf(
+      "Tamanho RGB565 inesperado: %u (esperado %u)\n",
+      static_cast<unsigned>(rgb565.size()),
+      static_cast<unsigned>(expected)
+    );
     return false;
   }
 
   display->clearScreen();
   drawRgb565Buffer(rgb565, 0, 0, w, h);
-
-  display->setTextColor(display->color565(255, 220, 80));
-  display->setCursor(35, 8);
-  display->print(label);
-  display->setTextColor(display->color565(120, 210, 255));
-  display->setCursor(35, 20);
-  display->print("LIVE");
-
   return true;
-}
-
-void renderClock(const JsonObjectConst& data) {
-  const char* hhmm = data["time"] | "--:--";
-  const char* sec = data["seconds"] | "--";
-  const char* date = data["date"] | "--/--";
-  const char* weekday = data["weekday"] | "---";
-
-  display->clearScreen();
-
-  display->setTextColor(display->color565(255, 230, 90));
-  display->setCursor(2, 8);
-  display->print(hhmm);
-
-  display->setTextColor(display->color565(130, 210, 255));
-  display->setCursor(40, 8);
-  display->print(sec);
-
-  display->setTextColor(display->color565(180, 255, 180));
-  display->setCursor(2, 20);
-  display->print(date);
-
-  display->setTextColor(display->color565(255, 170, 170));
-  display->setCursor(40, 20);
-  display->print(weekday);
 }
 
 void renderStatus(const char* line1, const char* line2) {

@@ -4,6 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.config import get_settings
+from app.services.frame_renderer import FrameRenderer
 from app.services.image_service import ImageProcessor
 from app.services.widget_manager import WidgetManager
 from app.widgets.book_widget import BookWidget
@@ -14,6 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ASSETS_DIR = PROJECT_ROOT / "assets"
 TEMPLATES_DIR = PROJECT_ROOT / "app" / "templates"
 PREVIEW_TEMPLATE_PATH = TEMPLATES_DIR / "preview.html"
+FRAME_PREVIEW_TEMPLATE_PATH = TEMPLATES_DIR / "preview_frame.html"
 
 settings = get_settings()
 image_processor = ImageProcessor(
@@ -31,8 +33,19 @@ widget_manager = WidgetManager(
     primary_widgets=[spotify_widget, book_widget],
     fallback_widget=clock_widget,
 )
+frame_renderer = FrameRenderer(
+    width=64,
+    height=32,
+    font_path=ASSETS_DIR / "minecraftia.ttf",
+    border_mode="strong",
+)
 
 
 @lru_cache(maxsize=1)
 def load_preview_template() -> str:
     return PREVIEW_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
+def load_frame_preview_template() -> str:
+    return FRAME_PREVIEW_TEMPLATE_PATH.read_text(encoding="utf-8")

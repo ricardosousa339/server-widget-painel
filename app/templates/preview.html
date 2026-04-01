@@ -192,8 +192,8 @@
             <div class="toolbar">
                 <button id="refreshNow">Atualizar agora</button>
                 <select id="refreshMs">
-                    <option value="1000">1s</option>
-                    <option value="2000" selected>2s</option>
+                    <option value="1000" selected>1s</option>
+                    <option value="2000">2s</option>
                     <option value="5000">5s</option>
                 </select>
                 <select id="borderMode" title="Intensidade do contorno">
@@ -729,7 +729,7 @@
 
         function startTimer() {
             if (timer) clearInterval(timer);
-            const interval = Number(refreshMsEl.value || 2000);
+            const interval = Number(refreshMsEl.value || 1000);
             timer = setInterval(fetchScreenData, interval);
         }
 

@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Preview Frame Real 64x32</title>
+    <style>
+        :root {
+            --bg: #0f1218;
+            --panel: #171c25;
+            --text: #dfe7f3;
+            --muted: #8fa0ba;
+            --accent: #66d2ff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: radial-gradient(1000px 500px at 30% 0%, #1a2538, var(--bg));
+            color: var(--text);
+            font-family: Segoe UI, Roboto, Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .layout {
+            width: min(1000px, 100%);
+            display: grid;
+            gap: 14px;
+            grid-template-columns: 1fr 300px;
+        }
+
+        .panel {
+            background: linear-gradient(145deg, #2f3747, #202734);
+            border-radius: 18px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+        }
+
+        .canvas-wrap {
+            background: #000;
+            border-radius: 8px;
+            padding: 8px;
+            border: 1px solid #0c1017;
+        }
+
+        canvas {
+            width: 100%;
+            aspect-ratio: 2 / 1;
+            image-rendering: pixelated;
+            background: #000;
+            border-radius: 4px;
+        }
+
+        .hud {
+            background: var(--panel);
+            border: 1px solid #2b3443;
+            border-radius: 12px;
+            padding: 12px;
+            display: grid;
+            gap: 10px;
+            align-content: start;
+        }
+
+        .title {
+            color: var(--muted);
+            margin: 0;
+            font-size: 13px;
+        }
+
+        .value {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: rgba(102, 210, 255, 0.12);
+            border: 1px solid rgba(102, 210, 255, 0.4);
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button, select {
+            background: #1a2331;
+            color: var(--text);
+            border: 1px solid #2d3b52;
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <section class="panel">
+            <div class="canvas-wrap">
+                <canvas id="led" width="64" height="32"></canvas>
+            </div>
+        </section>
+
+        <aside class="hud">
+            <div>
+                <p class="title">Widget</p>
+                <span id="widgetName" class="pill">-</span>
+            </div>
+            <div>
+                <p class="title">Status</p>
+                <p id="status" class="value">Aguardando...</p>
+            </div>
+            <div>
+                <p class="title">Frame</p>
+                <p id="frameInfo" class="value">-</p>
+            </div>
+            <div class="toolbar">
+                <button id="refreshNow">Atualizar agora</button>
+                <select id="refreshMs">
+                    <option value="500">0.5s</option>
+                    <option value="1000" selected>1s</option>
+                    <option value="2000">2s</option>
+                </select>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('led');
+        const ctx = canvas.getContext('2d');
+
+        const widgetNameEl = document.getElementById('widgetName');
+        const statusEl = document.getElementById('status');
+        const frameInfoEl = document.getElementById('frameInfo');
+        const refreshNowEl = document.getElementById('refreshNow');
+        const refreshMsEl = document.getElementById('refreshMs');
+
+        let timer = null;
+
+        function clearCanvas() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, 64, 32);
+        }
+
+        function decodeRgb565ToImageData(base64Data, w, h) {
+            const binary = atob(base64Data);
+            const imageData = ctx.createImageData(w, h);
+            let p = 0;
+
+            for (let i = 0; i < binary.length; i += 2) {
+                const value = (binary.charCodeAt(i) << 8) | binary.charCodeAt(i + 1);
+                const r = ((value >> 11) & 0x1F) * 255 / 31;
+                const g = ((value >> 5) & 0x3F) * 255 / 63;
+                const b = (value & 0x1F) * 255 / 31;
+                imageData.data[p++] = r;
+                imageData.data[p++] = g;
+                imageData.data[p++] = b;
+                imageData.data[p++] = 255;
+            }
+
+            return imageData;
+        }
+
+        async function fetchFrame() {
+            try {
+                const atMs = Date.now();
+                const res = await fetch(`/screen/frame?at_ms=${atMs}`, { cache: 'no-store' });
+                const payload = await res.json();
+
+                const widget = payload.widget || 'none';
+                const frame = payload.frame || {};
+                const w = frame.w || 0;
+                const h = frame.h || 0;
+                const enc = frame.enc || '-';
+                const data = frame.data || '';
+
+                widgetNameEl.textContent = widget;
+                statusEl.textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
+                frameInfoEl.textContent = `${w}x${h} | ${enc}`;
+
+                if (enc !== 'rgb565_base64' || !data || w <= 0 || h <= 0) {
+                    clearCanvas();
+                    return;
+                }
+
+                const imageData = decodeRgb565ToImageData(data, w, h);
+                clearCanvas();
+                ctx.putImageData(imageData, 0, 0);
+            } catch (error) {
+                clearCanvas();
+                widgetNameEl.textContent = 'erro';
+                statusEl.textContent = 'Falha no /screen/frame';
+                frameInfoEl.textContent = String(error);
+            }
+        }
+
+        function startTimer() {
+            if (timer) {
+                clearInterval(timer);
+            }
+
+            const interval = Number(refreshMsEl.value || 1000);
+            timer = setInterval(fetchFrame, interval);
+        }
+
+        refreshNowEl.addEventListener('click', fetchFrame);
+        refreshMsEl.addEventListener('change', startTimer);
+
+        fetchFrame();
+        startTimer();
+    </script>
+</body>
+</html>
