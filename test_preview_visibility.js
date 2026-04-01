@@ -217,23 +217,23 @@ function testCoverIsSquare() {
     data: makeDummyRgb565(16, 32),
   };
 
-  drawCover(ctx, cover, 23);
+  drawCover(ctx, cover, 26);
 
-  const coverBox = getNonBlackBoundingBox(ctx, 0, 0, 23, CANVAS_HEIGHT);
+  const coverBox = getNonBlackBoundingBox(ctx, 0, 0, 26, CANVAS_HEIGHT);
   assert(coverBox, 'Capa não foi desenhada');
 
   assert.strictEqual(
     coverBox.width,
-    23,
-    `Largura da capa deveria ser 23px, mas foi ${coverBox.width}px`
+    26,
+    `Largura da capa deveria ser 26px, mas foi ${coverBox.width}px`
   );
   assert.strictEqual(
     coverBox.height,
-    23,
-    `Altura da capa deveria ser 23px (quadrada), mas foi ${coverBox.height}px`
+    26,
+    `Altura da capa deveria ser 26px (quadrada), mas foi ${coverBox.height}px`
   );
 
-  console.log('✓ Capa: renderização quadrada (23x23).');
+  console.log('✓ Capa: renderização quadrada (26x26).');
 }
 
 function main() {

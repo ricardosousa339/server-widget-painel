@@ -276,6 +276,76 @@
             return width;
         }
 
+        function drawBinaryText(text, x, baselineY, opts = {}) {
+            const {
+                font = `8px ${CANVAS_FONT}`,
+                clipWidth = null,
+                threshold = 96,
+                letterSpacing = 0,
+            } = opts;
+
+            const source = String(text || '');
+            if (!source) return;
+
+            ctx.save();
+            ctx.font = font;
+            const metrics = ctx.measureText(source);
+            let spacedWidth = 0;
+            if (source.length > 0 && letterSpacing > 0) {
+                for (const ch of source) {
+                    spacedWidth += ctx.measureText(ch).width;
+                }
+                spacedWidth += Math.max(0, source.length - 1) * letterSpacing;
+            }
+            ctx.restore();
+
+            const ascent = Math.ceil(metrics.actualBoundingBoxAscent || 7);
+            const descent = Math.ceil(metrics.actualBoundingBoxDescent || 2);
+            const measuredWidth = Math.ceil(letterSpacing > 0 ? spacedWidth : (metrics.width || 0));
+            const renderWidth = Math.max(1, clipWidth != null ? Math.min(clipWidth, measuredWidth) : measuredWidth);
+            const renderHeight = Math.max(1, ascent + descent + 2);
+
+            const off = document.createElement('canvas');
+            off.width = renderWidth;
+            off.height = renderHeight;
+            const offCtx = off.getContext('2d');
+
+            offCtx.clearRect(0, 0, renderWidth, renderHeight);
+            offCtx.font = font;
+            offCtx.textBaseline = 'alphabetic';
+            offCtx.textAlign = 'left';
+            offCtx.fillStyle = '#fff';
+            if (letterSpacing > 0) {
+                let cursorX = 0;
+                for (const ch of source) {
+                    const chWidth = offCtx.measureText(ch).width;
+                    if (cursorX > renderWidth) {
+                        break;
+                    }
+                    offCtx.fillText(ch, cursorX, ascent + 1);
+                    cursorX += chWidth + letterSpacing;
+                }
+            } else {
+                offCtx.fillText(source, 0, ascent + 1);
+            }
+
+            const imageData = offCtx.getImageData(0, 0, renderWidth, renderHeight);
+            const px = imageData.data;
+            for (let i = 0; i < px.length; i += 4) {
+                const alpha = px[i + 3];
+                const on = alpha >= threshold;
+                px[i] = 255;
+                px[i + 1] = 255;
+                px[i + 2] = 255;
+                px[i + 3] = on ? 255 : 0;
+            }
+            offCtx.putImageData(imageData, 0, 0);
+
+            const dstX = Math.floor(x);
+            const dstY = Math.floor(baselineY - ascent - 1);
+            ctx.drawImage(off, dstX, dstY);
+        }
+
         function compactArtistName(artist) {
             const normalized = String(artist || '').trim().replace(/\s+/g, ' ');
             if (!normalized) return '-';
@@ -455,12 +525,9 @@
             const lineColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
             
             ctx.fillStyle = lineColor;
-            // linha superior e inferior
+            // somente linha superior e inferior
             ctx.fillRect(0, 0, CANVAS_WIDTH, 1);
             ctx.fillRect(0, CANVAS_HEIGHT - 1, CANVAS_WIDTH, 1);
-            // linha esquerda e direita
-            ctx.fillRect(0, 0, 1, CANVAS_HEIGHT);
-            ctx.fillRect(CANVAS_WIDTH - 1, 0, 1, CANVAS_HEIGHT);
         }
 
         function drawCover(cover, targetSize = 24) {
@@ -500,16 +567,13 @@
 
         function drawMediaLike(data, label) {
             clearCanvas();
-            const coverWidth = 23;
-            const textX = coverWidth + 2;
-            const textWidth = CANVAS_WIDTH - textX - 1;
+            const coverWidth = 26;
+            const textX = coverWidth + 1;
+            const textWidth = CANVAS_WIDTH - textX;
             const dominant = drawCover(data.cover, coverWidth);
 
             ctx.fillStyle = 'rgba(0,0,0,.78)';
             ctx.fillRect(coverWidth, 0, CANVAS_WIDTH - coverWidth, CANVAS_HEIGHT);
-
-            ctx.fillStyle = 'rgba(255,255,255,.18)';
-            ctx.fillRect(coverWidth, 0, 1, CANVAS_HEIGHT);
 
             // Em 64x32 priorizamos apenas o essencial para legibilidade. (Base Alphabetic)
             const titleFont = `8px ${CANVAS_FONT}`;
@@ -525,18 +589,18 @@
                     : marqueeTextByPixels(compact, textWidth, authorFont, 380);
             }
 
-            drawMonoText(title, textX, 14, {
+            drawBinaryText(title, textX, 14, {
                 font: titleFont,
                 clipWidth: textWidth,
+                threshold: 96,
+                letterSpacing: 1,
             });
-            drawMonoText(author, textX, 26, {
+            drawBinaryText(author, textX, 26, {
                 font: authorFont,
                 clipWidth: textWidth,
+                threshold: 96,
+                letterSpacing: 1,
             });
-
-            // Remove antialiasing apenas nas linhas de texto (mantém capa, barra e bordas como estão)
-            forceMonochromeRegion(textX, 6, textWidth, 10, 96);   // título (baseline y=14)
-            forceMonochromeRegion(textX, 18, textWidth, 10, 96);  // artista (baseline y=26)
 
             if (label === 'spotify' && data.duration_ms > 0) {
                 const progressRatio = Math.max(0, Math.min(1, (data.progress_ms || 0) / data.duration_ms));
