@@ -26,8 +26,10 @@ constexpr int16_t TITLE_Y = 8;
 constexpr int16_t AUTHOR_Y = 19;
 constexpr int16_t PROGRESS_Y = 29;
 
-// Busca de dados em baixa frequencia (Spotify/Clock).
+// Busca de dados em baixa frequencia para spotify/clock.
 constexpr uint32_t SOURCE_POLL_INTERVAL_MS = 1500;
+// Quando custom_gif estiver ativo, aumenta o polling para animacao mais fluida.
+constexpr uint32_t SOURCE_POLL_INTERVAL_GIF_MS = 90;
 // Render local em alta frequencia para scroll suave pixel-a-pixel.
 constexpr uint32_t RENDER_INTERVAL_MS = 33;
 constexpr uint32_t HTTP_TIMEOUT_MS = 1800;
@@ -49,6 +51,7 @@ enum WidgetKind {
   WidgetNone,
   WidgetClock,
   WidgetSpotify,
+  WidgetCustomGif,
 };
 
 struct RenderState {
@@ -66,6 +69,11 @@ struct RenderState {
 
   bool hasCover = false;
   std::vector<uint16_t> coverScaled565;
+
+  bool hasCustomFrame = false;
+  uint16_t customFrameW = 0;
+  uint16_t customFrameH = 0;
+  std::vector<uint16_t> customFrame565;
 };
 
 RenderState gState;
@@ -92,8 +100,15 @@ bool getLocalClockStrings(String& timeOut, String& dateOut, String& weekdayOut);
 void maintainNtpClock(uint32_t nowMs);
 void renderClockFrame();
 void renderMediaFrame(bool isSpotify, uint32_t nowMs);
+void renderCustomGifFrame();
 void drawCoverScaled(int16_t x0, int16_t y0);
 bool decodeAndScaleCover(const JsonObjectConst& cover, std::vector<uint16_t>& out);
+bool decodeRgb565Frame(
+  const JsonObjectConst& frame,
+  std::vector<uint16_t>& out,
+  uint16_t& outW,
+  uint16_t& outH
+);
 uint16_t measureTextWidth(const String& text);
 void drawMarqueeText(
   const String& text,
@@ -127,6 +142,7 @@ void setup() {
   display->setTextSize(1);
 
   gState.coverScaled565.reserve(static_cast<size_t>(COVER_TARGET_SIZE) * COVER_TARGET_SIZE);
+  gState.customFrame565.reserve(static_cast<size_t>(PANEL_WIDTH) * PANEL_HEIGHT);
 
   renderStatus("Booting...", "WiFi connect");
   connectWiFi();
@@ -145,7 +161,10 @@ void loop() {
   const uint32_t now = millis();
   maintainNtpClock(now);
 
-  if (now - lastSourcePollMs >= SOURCE_POLL_INTERVAL_MS) {
+  const uint32_t sourcePollInterval =
+    (gState.widget == WidgetCustomGif) ? SOURCE_POLL_INTERVAL_GIF_MS : SOURCE_POLL_INTERVAL_MS;
+
+  if (now - lastSourcePollMs >= sourcePollInterval) {
     lastSourcePollMs = now;
 
     String payload;
@@ -243,6 +262,11 @@ bool updateStateFromPayload(const String& payload) {
       gState.hasCover = false;
       gState.coverScaled565.clear();
     }
+
+    gState.hasCustomFrame = false;
+    gState.customFrameW = 0;
+    gState.customFrameH = 0;
+    gState.customFrame565.clear();
     return true;
   }
 
@@ -253,6 +277,37 @@ bool updateStateFromPayload(const String& payload) {
     gState.weekdayText = data["weekday"] | "---";
     gState.hasCover = false;
     gState.coverScaled565.clear();
+
+    gState.hasCustomFrame = false;
+    gState.customFrameW = 0;
+    gState.customFrameH = 0;
+    gState.customFrame565.clear();
+    return true;
+  }
+
+  if (strcmp(widget, "custom_gif") == 0) {
+    gState.widget = WidgetCustomGif;
+    gState.title = data["name"] | "custom_gif";
+    gState.author = "-";
+    gState.progressMs = 0;
+    gState.durationMs = 0;
+
+    gState.hasCover = false;
+    gState.coverScaled565.clear();
+
+    if (data["frame"].is<JsonObjectConst>()) {
+      gState.hasCustomFrame = decodeRgb565Frame(
+        data["frame"].as<JsonObjectConst>(),
+        gState.customFrame565,
+        gState.customFrameW,
+        gState.customFrameH
+      );
+    } else {
+      gState.hasCustomFrame = false;
+      gState.customFrameW = 0;
+      gState.customFrameH = 0;
+      gState.customFrame565.clear();
+    }
     return true;
   }
 
@@ -260,6 +315,10 @@ bool updateStateFromPayload(const String& payload) {
   gState.widgetName = "none";
   gState.hasCover = false;
   gState.coverScaled565.clear();
+  gState.hasCustomFrame = false;
+  gState.customFrameW = 0;
+  gState.customFrameH = 0;
+  gState.customFrame565.clear();
   return true;
 }
 
@@ -286,6 +345,11 @@ void renderCurrentFrame(uint32_t nowMs) {
     return;
   }
 
+  if (gState.widget == WidgetCustomGif) {
+    renderCustomGifFrame();
+    return;
+  }
+
   renderStatus("Sem widget", gState.widgetName.c_str());
 }
 
@@ -301,6 +365,44 @@ void renderClockFrame() {
 
   display->setCursor(34, 21);
   display->print(gState.dateText);
+}
+
+void renderCustomGifFrame() {
+  if (!display) {
+    return;
+  }
+
+  if (!gState.hasCustomFrame || gState.customFrameW == 0 || gState.customFrameH == 0) {
+    renderStatus("GIF invalido", "sem frame");
+    return;
+  }
+
+  const size_t expected = static_cast<size_t>(gState.customFrameW) * gState.customFrameH;
+  if (gState.customFrame565.size() != expected) {
+    renderStatus("GIF invalido", "frame corrompido");
+    return;
+  }
+
+  display->clearScreen();
+
+  for (uint16_t y = 0; y < PANEL_HEIGHT; y++) {
+    const uint16_t srcY = static_cast<uint16_t>(
+      (static_cast<uint32_t>(y) * gState.customFrameH) / PANEL_HEIGHT
+    );
+
+    for (uint16_t x = 0; x < PANEL_WIDTH; x++) {
+      const uint16_t srcX = static_cast<uint16_t>(
+        (static_cast<uint32_t>(x) * gState.customFrameW) / PANEL_WIDTH
+      );
+
+      const size_t srcIndex = static_cast<size_t>(srcY) * gState.customFrameW + srcX;
+      if (srcIndex >= gState.customFrame565.size()) {
+        continue;
+      }
+
+      display->drawPixel(x, y, gState.customFrame565[srcIndex]);
+    }
+  }
 }
 
 void maintainNtpClock(uint32_t nowMs) {
@@ -486,6 +588,51 @@ bool decodeAndScaleCover(const JsonObjectConst& cover, std::vector<uint16_t>& ou
     }
   }
 
+  return true;
+}
+
+bool decodeRgb565Frame(
+  const JsonObjectConst& frame,
+  std::vector<uint16_t>& out,
+  uint16_t& outW,
+  uint16_t& outH
+) {
+  const uint16_t w = frame["w"] | 0;
+  const uint16_t h = frame["h"] | 0;
+  const char* enc = frame["enc"] | "";
+  const char* base64Data = frame["data"] | "";
+
+  if (!base64Data || strcmp(enc, "rgb565_base64") != 0 || w == 0 || h == 0) {
+    outW = 0;
+    outH = 0;
+    out.clear();
+    return false;
+  }
+
+  std::vector<uint8_t> raw;
+  if (!decodeBase64(base64Data, raw)) {
+    outW = 0;
+    outH = 0;
+    out.clear();
+    return false;
+  }
+
+  const size_t expected = static_cast<size_t>(w) * static_cast<size_t>(h) * 2;
+  if (raw.size() != expected) {
+    outW = 0;
+    outH = 0;
+    out.clear();
+    return false;
+  }
+
+  out.assign(static_cast<size_t>(w) * h, 0);
+  for (size_t pixel = 0; pixel < out.size(); pixel++) {
+    const size_t srcIndex = pixel * 2;
+    out[pixel] = (static_cast<uint16_t>(raw[srcIndex]) << 8) | raw[srcIndex + 1];
+  }
+
+  outW = w;
+  outH = h;
   return true;
 }
 

@@ -7,6 +7,15 @@ from typing import Any, Iterable
 
 
 class WidgetConfigStore:
+    DEFAULT_DISPLAY_MODE = "priority"
+    DEFAULT_HYBRID_PERIOD_SECONDS = 300
+    DEFAULT_HYBRID_SHOW_SECONDS = 30
+    MIN_HYBRID_PERIOD_SECONDS = 10
+    MAX_HYBRID_PERIOD_SECONDS = 86400
+    MIN_HYBRID_SHOW_SECONDS = 1
+    MAX_HYBRID_SHOW_SECONDS = 3600
+    ALLOWED_DISPLAY_MODES = {"priority", "custom_only", "hybrid"}
+
     def __init__(self, state_path: Path, available_widgets: Iterable[str]) -> None:
         self.state_path = state_path
         self.available_widgets = self._normalize_names(available_widgets)
@@ -17,14 +26,58 @@ class WidgetConfigStore:
         return {
             "available_widgets": list(self.available_widgets),
             "enabled_widgets": list(state["enabled_widgets"]),
+            "display_mode": state["display_mode"],
+            "hybrid_period_seconds": state["hybrid_period_seconds"],
+            "hybrid_show_seconds": state["hybrid_show_seconds"],
             "updated_at": state["updated_at"],
         }
 
     def update_enabled_widgets(self, enabled_widgets: Iterable[str]) -> dict[str, Any]:
-        normalized_enabled = self._normalize_names(enabled_widgets)
-        valid_enabled = [name for name in normalized_enabled if name in self.available_widgets]
+        return self.update_config(enabled_widgets=enabled_widgets)
+
+    def update_config(
+        self,
+        *,
+        enabled_widgets: Iterable[str] | None = None,
+        display_mode: str | None = None,
+        hybrid_period_seconds: int | None = None,
+        hybrid_show_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        current = self._normalize_state(self._read_state())
+
+        if enabled_widgets is None:
+            valid_enabled = list(current["enabled_widgets"])
+        else:
+            normalized_enabled = self._normalize_names(enabled_widgets)
+            valid_enabled = [name for name in normalized_enabled if name in self.available_widgets]
+
+        normalized_mode = self._normalize_display_mode(
+            current["display_mode"] if display_mode is None else display_mode
+        )
+        normalized_period = self._normalize_int(
+            hybrid_period_seconds,
+            default=current["hybrid_period_seconds"],
+            min_value=self.MIN_HYBRID_PERIOD_SECONDS,
+            max_value=self.MAX_HYBRID_PERIOD_SECONDS,
+        )
+        normalized_show = self._normalize_int(
+            hybrid_show_seconds,
+            default=current["hybrid_show_seconds"],
+            min_value=self.MIN_HYBRID_SHOW_SECONDS,
+            max_value=self.MAX_HYBRID_SHOW_SECONDS,
+        )
+
+        if normalized_show >= normalized_period:
+            normalized_show = max(
+                self.MIN_HYBRID_SHOW_SECONDS,
+                normalized_period - 1,
+            )
+
         state = {
             "enabled_widgets": valid_enabled,
+            "display_mode": normalized_mode,
+            "hybrid_period_seconds": normalized_period,
+            "hybrid_show_seconds": normalized_show,
             "updated_at": int(time.time()),
         }
         self._write_state(state)
@@ -36,6 +89,9 @@ class WidgetConfigStore:
     def _default_state(self) -> dict[str, Any]:
         return {
             "enabled_widgets": list(self.available_widgets),
+            "display_mode": self.DEFAULT_DISPLAY_MODE,
+            "hybrid_period_seconds": self.DEFAULT_HYBRID_PERIOD_SECONDS,
+            "hybrid_show_seconds": self.DEFAULT_HYBRID_SHOW_SECONDS,
             "updated_at": int(time.time()),
         }
 
@@ -78,10 +134,53 @@ class WidgetConfigStore:
         except (TypeError, ValueError):
             updated_at = int(time.time())
 
+        display_mode = self._normalize_display_mode(state.get("display_mode"))
+
+        hybrid_period_seconds = self._normalize_int(
+            state.get("hybrid_period_seconds"),
+            default=self.DEFAULT_HYBRID_PERIOD_SECONDS,
+            min_value=self.MIN_HYBRID_PERIOD_SECONDS,
+            max_value=self.MAX_HYBRID_PERIOD_SECONDS,
+        )
+        hybrid_show_seconds = self._normalize_int(
+            state.get("hybrid_show_seconds"),
+            default=self.DEFAULT_HYBRID_SHOW_SECONDS,
+            min_value=self.MIN_HYBRID_SHOW_SECONDS,
+            max_value=self.MAX_HYBRID_SHOW_SECONDS,
+        )
+
+        if hybrid_show_seconds >= hybrid_period_seconds:
+            hybrid_show_seconds = max(
+                self.MIN_HYBRID_SHOW_SECONDS,
+                hybrid_period_seconds - 1,
+            )
+
         return {
             "enabled_widgets": enabled,
+            "display_mode": display_mode,
+            "hybrid_period_seconds": hybrid_period_seconds,
+            "hybrid_show_seconds": hybrid_show_seconds,
             "updated_at": updated_at,
         }
+
+    def _normalize_display_mode(self, value: Any) -> str:
+        mode = str(value or "").strip().lower()
+        if mode not in self.ALLOWED_DISPLAY_MODES:
+            return self.DEFAULT_DISPLAY_MODE
+        return mode
+
+    @staticmethod
+    def _normalize_int(value: Any, *, default: int, min_value: int, max_value: int) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            parsed = default
+
+        if parsed < min_value:
+            return min_value
+        if parsed > max_value:
+            return max_value
+        return parsed
 
     @staticmethod
     def _normalize_names(values: Iterable[str]) -> list[str]:

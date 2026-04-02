@@ -3,221 +3,626 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Configuracao de Widgets</title>
+  <title>Painel de Configuracao de Widgets</title>
   <style>
     :root {
-      --bg: #0a0f13;
-      --surface: #101923;
-      --surface-2: #172534;
-      --text: #eff5ff;
-      --muted: #9fb1c8;
+      --bg: #0b1015;
+      --surface: #111a24;
+      --surface-2: #162231;
       --line: #2a3a4d;
-      --accent: #59d5a8;
-      --accent-2: #f9b56b;
-      --ok: #38d39f;
-      --err: #ff6a6a;
+      --line-strong: #39506b;
+      --text: #eef5ff;
+      --muted: #9cb2c8;
+      --accent: #58d8a8;
+      --accent-2: #70b6ff;
+      --warn: #ffbd6a;
+      --ok: #3fd39f;
+      --err: #ff6f6f;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
+      min-height: 100vh;
       font-family: "Trebuchet MS", "Verdana", sans-serif;
       color: var(--text);
-      min-height: 100vh;
       background:
-        radial-gradient(circle at 10% 0%, rgba(89, 213, 168, 0.15), transparent 34%),
-        radial-gradient(circle at 90% 10%, rgba(249, 181, 107, 0.11), transparent 35%),
-        linear-gradient(165deg, #070c11, #0a1118 48%, #0d1722);
-      padding: 24px;
+        radial-gradient(circle at 12% 0%, rgba(88, 216, 168, 0.14), transparent 33%),
+        radial-gradient(circle at 92% 5%, rgba(112, 182, 255, 0.15), transparent 36%),
+        linear-gradient(165deg, #070b10, #0b1119 50%, #10192a);
+      padding: 22px;
     }
 
     .container {
-      max-width: 900px;
+      max-width: 1100px;
       margin: 0 auto;
+      display: grid;
+      gap: 14px;
     }
 
     .hero {
-      border: 1px solid rgba(89, 213, 168, 0.35);
+      border: 1px solid rgba(88, 216, 168, 0.34);
       border-radius: 16px;
+      background: linear-gradient(120deg, rgba(88, 216, 168, 0.13), rgba(88, 216, 168, 0.03));
       padding: 18px;
-      background: linear-gradient(120deg, rgba(89, 213, 168, 0.14), rgba(89, 213, 168, 0.03));
-      margin-bottom: 14px;
     }
 
     h1 {
       margin: 0 0 6px;
-      font-size: 1.7rem;
+      font-size: 1.65rem;
+      letter-spacing: 0.2px;
     }
 
-    p {
+    .subtitle {
       margin: 0;
       color: var(--muted);
       line-height: 1.45;
+    }
+
+    .quick-links {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .quick-links a {
+      text-decoration: none;
+      color: var(--accent-2);
+      border: 1px solid rgba(112, 182, 255, 0.45);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 0.86rem;
+      background: rgba(112, 182, 255, 0.09);
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1.1fr 1fr;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent), var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 1.06rem;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .mode-box {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 12px;
+      background: rgba(88, 216, 168, 0.05);
+      display: grid;
+      gap: 8px;
+    }
+
+    .mode-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .mode-row label {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .mode-row select,
+    .mode-row input[type="number"] {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 0.88rem;
+    }
+
+    .mode-row input[type="number"] {
+      width: 120px;
+    }
+
+    .mode-meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
     }
 
     .toolbar {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin: 12px 0 14px;
+      margin: 12px 0;
     }
 
     button {
       border: 1px solid var(--line);
       border-radius: 10px;
-      padding: 8px 12px;
       background: var(--surface-2);
       color: var(--text);
+      padding: 8px 12px;
+      font-size: 0.9rem;
       cursor: pointer;
-      font-size: 0.92rem;
     }
 
     button.primary {
-      background: var(--accent);
-      color: #072018;
       border-color: transparent;
+      background: var(--accent);
+      color: #072017;
       font-weight: 700;
     }
 
-    button:hover { filter: brightness(1.08); }
+    button.secondary {
+      border-color: rgba(112, 182, 255, 0.45);
+      color: var(--accent-2);
+    }
+
+    button.warn {
+      border-color: rgba(255, 189, 106, 0.4);
+      color: var(--warn);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    button:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
 
     .widgets {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
       gap: 10px;
     }
 
-    .card {
+    .widget-item {
       border: 1px solid var(--line);
       border-radius: 12px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent), var(--surface);
-      padding: 12px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.01);
     }
 
-    .card label {
+    .widget-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .widget-title label {
       display: flex;
       align-items: center;
       gap: 8px;
       font-weight: 700;
-      margin-bottom: 6px;
+      text-transform: lowercase;
+      letter-spacing: 0.2px;
+    }
+
+    .badge {
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      color: var(--muted);
     }
 
     .meta {
-      font-size: 0.84rem;
       color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
     }
 
-    .status {
-      margin-top: 12px;
-      min-height: 1.4rem;
-      font-size: 0.9rem;
-    }
-
-    .status.ok { color: var(--ok); }
-    .status.err { color: var(--err); }
-
-    .footer {
-      margin-top: 12px;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-
-    .links {
+    .summary {
       margin-top: 10px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .links a {
-      text-decoration: none;
-      color: var(--accent-2);
-      border: 1px solid rgba(249, 181, 107, 0.35);
-      border-radius: 999px;
-      padding: 4px 10px;
+      color: var(--muted);
       font-size: 0.86rem;
     }
 
+    .status {
+      min-height: 1.2rem;
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .status.err {
+      color: var(--err);
+    }
+
+    .status.warn {
+      color: var(--warn);
+    }
+
+    .upload-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 12px;
+      background: rgba(112, 182, 255, 0.05);
+    }
+
+    .upload-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input[type="file"] {
+      color: var(--text);
+      font-size: 0.9rem;
+      max-width: 100%;
+    }
+
+    .preview-wrap {
+      margin-top: 8px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .gif-preview {
+      width: min(340px, 100%);
+      aspect-ratio: 2 / 1;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      background: #04070a;
+      border-radius: 10px;
+      image-rendering: pixelated;
+    }
+
+    .preview-empty {
+      color: var(--muted);
+      font-size: 0.88rem;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      width: min(340px, 100%);
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 940px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 700px) {
-      body { padding: 14px; }
-      h1 { font-size: 1.4rem; }
+      body {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 1.35rem;
+      }
     }
   </style>
 </head>
 <body>
   <main class="container">
     <section class="hero">
-      <h1>Configuracao de Widgets Ativos</h1>
-      <p>Escolha quais widgets podem aparecer no painel. A selecao e salva no backend e continua valendo apos reinicio.</p>
-      <div class="links">
-        <a href="/endpoints">Guia de endpoints</a>
-        <a href="/docs">OpenAPI docs</a>
+      <h1>Painel de Configuracao de Widgets</h1>
+      <p class="subtitle">Controle quais widgets estao ativos e envie um GIF personalizado para o widget custom_gif.</p>
+      <div class="quick-links">
         <a href="/preview/painel">Preview painel</a>
+        <a href="/preview/frame">Preview frame</a>
+        <a href="/endpoints">Guia endpoints</a>
+        <a href="/docs">OpenAPI docs</a>
       </div>
     </section>
 
-    <section class="toolbar">
-      <button id="enableAllBtn">Ativar todos</button>
-      <button id="disableAllBtn">Desativar todos</button>
-      <button id="reloadBtn">Recarregar</button>
-      <button id="saveBtn" class="primary">Salvar configuracao</button>
+    <section class="grid">
+      <article class="card">
+        <h2>Widgets Ativos</h2>
+        <p class="hint">Os widgets ativos entram na selecao por prioridade. Clique em salvar para aplicar.</p>
+
+        <section class="mode-box">
+          <div class="mode-row">
+            <label for="displayModeSelect">Modo de exibicao:</label>
+            <select id="displayModeSelect">
+              <option value="priority">Padrao (prioridade)</option>
+              <option value="custom_only">Sempre custom_gif</option>
+              <option value="hybrid">Hibrido</option>
+            </select>
+          </div>
+          <div id="hybridConfigFields" class="mode-row" hidden>
+            <label for="hybridPeriodInput">Periodo (s)</label>
+            <input id="hybridPeriodInput" type="number" min="10" max="86400" step="1" value="300" />
+            <label for="hybridShowInput">Tempo do GIF (s)</label>
+            <input id="hybridShowInput" type="number" min="1" max="3600" step="1" value="30" />
+          </div>
+          <div id="modeSummary" class="mode-meta">Modo atual: Padrao (prioridade)</div>
+        </section>
+
+        <div class="toolbar">
+          <button id="enableAllBtn" class="secondary">Ativar todos</button>
+          <button id="disableAllBtn" class="secondary">Desativar todos</button>
+          <button id="reloadWidgetsBtn">Recarregar</button>
+          <button id="saveWidgetsBtn" class="primary">Salvar configuracao</button>
+        </div>
+
+        <section id="widgetsList" class="widgets"></section>
+        <div id="widgetsSummary" class="summary">-</div>
+        <div id="widgetsStatus" class="status"></div>
+      </article>
+
+      <article class="card">
+        <h2>Widget Custom GIF</h2>
+        <p class="hint">Envie um GIF para usar no widget custom_gif. O GIF e ajustado para 64x32 no backend.</p>
+
+        <section class="upload-box">
+          <div class="upload-row">
+            <input id="gifFileInput" type="file" accept="image/gif" />
+            <button id="uploadGifBtn" class="primary">Enviar GIF</button>
+            <button id="removeGifBtn" class="warn">Remover GIF</button>
+          </div>
+          <div class="upload-row">
+            <button id="activateGifWidgetBtn" class="secondary">Ativar custom_gif na lista</button>
+            <button id="reloadGifBtn">Atualizar status GIF</button>
+          </div>
+        </section>
+
+        <div class="preview-wrap">
+          <img id="gifPreview" class="gif-preview" alt="Preview GIF" hidden />
+          <div id="gifPreviewEmpty" class="preview-empty">Nenhum GIF enviado ainda.</div>
+          <div id="gifMeta" class="meta">-</div>
+          <div id="gifStatus" class="status"></div>
+        </div>
+      </article>
     </section>
 
-    <section id="widgetsList" class="widgets"></section>
-    <div id="status" class="status"></div>
-    <div id="meta" class="footer"></div>
+    <div id="footerMeta" class="footer">-</div>
   </main>
 
   <script>
-    const widgetsList = document.getElementById("widgetsList");
-    const statusEl = document.getElementById("status");
-    const metaEl = document.getElementById("meta");
+    const widgetsListEl = document.getElementById("widgetsList");
+    const widgetsStatusEl = document.getElementById("widgetsStatus");
+    const widgetsSummaryEl = document.getElementById("widgetsSummary");
+    const footerMetaEl = document.getElementById("footerMeta");
 
-    function setStatus(message, type) {
-      statusEl.textContent = message;
-      statusEl.className = "status" + (type ? " " + type : "");
+    const gifStatusEl = document.getElementById("gifStatus");
+    const gifMetaEl = document.getElementById("gifMeta");
+    const gifPreviewEl = document.getElementById("gifPreview");
+    const gifPreviewEmptyEl = document.getElementById("gifPreviewEmpty");
+    const gifFileInputEl = document.getElementById("gifFileInput");
+    const uploadGifBtnEl = document.getElementById("uploadGifBtn");
+    const removeGifBtnEl = document.getElementById("removeGifBtn");
+    const activateGifWidgetBtnEl = document.getElementById("activateGifWidgetBtn");
+
+    const displayModeSelectEl = document.getElementById("displayModeSelect");
+    const hybridConfigFieldsEl = document.getElementById("hybridConfigFields");
+    const hybridPeriodInputEl = document.getElementById("hybridPeriodInput");
+    const hybridShowInputEl = document.getElementById("hybridShowInput");
+    const modeSummaryEl = document.getElementById("modeSummary");
+
+    let latestWidgetsConfig = null;
+    let latestGifState = null;
+
+    const DISPLAY_MODES = new Set(["priority", "custom_only", "hybrid"]);
+    const DEFAULT_HYBRID_PERIOD_SECONDS = 300;
+    const DEFAULT_HYBRID_SHOW_SECONDS = 30;
+
+    function setStatus(el, message, type) {
+      el.textContent = message;
+      el.className = "status" + (type ? " " + type : "");
     }
 
     function formatDateTime(ts) {
       if (!ts) return "-";
-      const date = new Date(ts * 1000);
+      const date = new Date(Number(ts) * 1000);
       if (Number.isNaN(date.getTime())) return "-";
       return date.toLocaleString();
     }
 
+    function formatBytes(bytes) {
+      const size = Number(bytes || 0);
+      if (!Number.isFinite(size) || size <= 0) return "0 B";
+
+      const units = ["B", "KB", "MB", "GB"];
+      let index = 0;
+      let value = size;
+      while (value >= 1024 && index < units.length - 1) {
+        value /= 1024;
+        index += 1;
+      }
+      return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+    }
+
+    function formatDuration(totalMs) {
+      const ms = Number(totalMs || 0);
+      if (!Number.isFinite(ms) || ms <= 0) return "0 ms";
+      if (ms < 1000) return `${ms} ms`;
+      return `${(ms / 1000).toFixed(2)} s`;
+    }
+
+    function sanitizeInt(value, fallback, minValue, maxValue) {
+      const parsed = Number.parseInt(String(value), 10);
+      if (!Number.isFinite(parsed)) {
+        return fallback;
+      }
+      if (parsed < minValue) {
+        return minValue;
+      }
+      if (parsed > maxValue) {
+        return maxValue;
+      }
+      return parsed;
+    }
+
+    function normalizeDisplayMode(mode) {
+      const normalized = String(mode || "").toLowerCase();
+      if (!DISPLAY_MODES.has(normalized)) {
+        return "priority";
+      }
+      return normalized;
+    }
+
+    function formatDisplayMode(mode) {
+      if (mode === "custom_only") return "Sempre custom_gif";
+      if (mode === "hybrid") return "Hibrido";
+      return "Padrao (prioridade)";
+    }
+
+    function syncDisplayModeUi(mode) {
+      const normalizedMode = normalizeDisplayMode(mode);
+      displayModeSelectEl.value = normalizedMode;
+      hybridConfigFieldsEl.hidden = normalizedMode !== "hybrid";
+
+      const periodSeconds = sanitizeInt(
+        hybridPeriodInputEl.value,
+        DEFAULT_HYBRID_PERIOD_SECONDS,
+        10,
+        86400
+      );
+      let showSeconds = sanitizeInt(
+        hybridShowInputEl.value,
+        DEFAULT_HYBRID_SHOW_SECONDS,
+        1,
+        3600
+      );
+
+      if (showSeconds >= periodSeconds) {
+        showSeconds = Math.max(1, periodSeconds - 1);
+      }
+
+      hybridPeriodInputEl.value = String(periodSeconds);
+      hybridShowInputEl.value = String(showSeconds);
+
+      if (normalizedMode === "hybrid") {
+        modeSummaryEl.textContent = `Modo atual: Hibrido | GIF ${showSeconds}s a cada ${periodSeconds}s`;
+      } else {
+        modeSummaryEl.textContent = `Modo atual: ${formatDisplayMode(normalizedMode)}`;
+      }
+    }
+
+    function collectModeConfig() {
+      const displayMode = normalizeDisplayMode(displayModeSelectEl.value);
+      const hybridPeriodSeconds = sanitizeInt(
+        hybridPeriodInputEl.value,
+        DEFAULT_HYBRID_PERIOD_SECONDS,
+        10,
+        86400
+      );
+      let hybridShowSeconds = sanitizeInt(
+        hybridShowInputEl.value,
+        DEFAULT_HYBRID_SHOW_SECONDS,
+        1,
+        3600
+      );
+
+      if (hybridShowSeconds >= hybridPeriodSeconds) {
+        hybridShowSeconds = Math.max(1, hybridPeriodSeconds - 1);
+      }
+
+      hybridPeriodInputEl.value = String(hybridPeriodSeconds);
+      hybridShowInputEl.value = String(hybridShowSeconds);
+
+      return {
+        display_mode: displayMode,
+        hybrid_period_seconds: hybridPeriodSeconds,
+        hybrid_show_seconds: hybridShowSeconds,
+      };
+    }
+
+    function updateFooterMeta() {
+      const updatedAt = latestWidgetsConfig?.updated_at;
+      footerMetaEl.textContent = "Ultima atualizacao da configuracao: " + formatDateTime(updatedAt);
+    }
+
     function renderWidgets(config) {
-      widgetsList.innerHTML = "";
-      const widgets = Array.isArray(config.widgets) ? config.widgets : [];
+      latestWidgetsConfig = config;
+      widgetsListEl.innerHTML = "";
+
+      const widgets = Array.isArray(config?.widgets) ? config.widgets : [];
+      const enabledCount = widgets.filter((widget) => Boolean(widget.enabled)).length;
 
       for (const widget of widgets) {
         const card = document.createElement("article");
-        card.className = "card";
+        card.className = "widget-item";
+
+        const title = document.createElement("div");
+        title.className = "widget-title";
 
         const label = document.createElement("label");
-
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
+        checkbox.className = "widget-toggle";
         checkbox.value = widget.name;
         checkbox.checked = Boolean(widget.enabled);
-        checkbox.className = "widget-toggle";
-
-        const title = document.createElement("span");
-        title.textContent = widget.name;
-
         label.appendChild(checkbox);
-        label.appendChild(title);
+
+        const text = document.createElement("span");
+        text.textContent = widget.name;
+        label.appendChild(text);
+
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = widget.role;
+
+        title.appendChild(label);
+        title.appendChild(badge);
 
         const meta = document.createElement("div");
         meta.className = "meta";
-        meta.textContent = "prioridade: " + widget.priority + " | papel: " + widget.role;
+        meta.textContent = "prioridade: " + widget.priority;
 
-        card.appendChild(label);
+        card.appendChild(title);
         card.appendChild(meta);
-        widgetsList.appendChild(card);
+        widgetsListEl.appendChild(card);
       }
 
-      metaEl.textContent = "Ultima atualizacao da configuracao: " + formatDateTime(config.updated_at);
+      const configDisplayMode = normalizeDisplayMode(config?.display_mode);
+      const configHybridPeriod = sanitizeInt(
+        config?.hybrid_period_seconds,
+        DEFAULT_HYBRID_PERIOD_SECONDS,
+        10,
+        86400
+      );
+      const configHybridShow = sanitizeInt(
+        config?.hybrid_show_seconds,
+        DEFAULT_HYBRID_SHOW_SECONDS,
+        1,
+        3600
+      );
+
+      displayModeSelectEl.value = configDisplayMode;
+      hybridPeriodInputEl.value = String(configHybridPeriod);
+      hybridShowInputEl.value = String(configHybridShow);
+      syncDisplayModeUi(configDisplayMode);
+
+      widgetsSummaryEl.textContent = `Ativos: ${enabledCount} de ${widgets.length} | modo: ${formatDisplayMode(configDisplayMode)}`;
+      updateFooterMeta();
     }
 
     function collectEnabledWidgets() {
@@ -226,64 +631,229 @@
         .map((el) => el.value);
     }
 
-    function setAllCheckboxes(checked) {
+    function setAllWidgets(enabled) {
       const toggles = document.querySelectorAll(".widget-toggle");
       for (const toggle of toggles) {
-        toggle.checked = checked;
+        toggle.checked = enabled;
       }
     }
 
-    async function loadConfig() {
-      setStatus("Carregando configuracao...", "");
+    function setWidgetToggle(widgetName, enabled) {
+      const toggle = document.querySelector(`.widget-toggle[value="${widgetName}"]`);
+      if (!toggle) {
+        return false;
+      }
+      toggle.checked = enabled;
+      return true;
+    }
+
+    async function loadWidgetsConfig() {
+      setStatus(widgetsStatusEl, "Carregando configuracao de widgets...", "");
       try {
-        const response = await fetch("/widgets/config");
-        if (!response.ok) {
-          throw new Error("Falha ao carregar configuracao");
+        const res = await fetch("/widgets/config");
+        if (!res.ok) {
+          throw new Error("Falha ao buscar /widgets/config");
         }
-        const config = await response.json();
+        const config = await res.json();
         renderWidgets(config);
-        setStatus("Configuracao carregada.", "ok");
+        setStatus(widgetsStatusEl, "Configuracao carregada.", "ok");
       } catch (error) {
-        setStatus("Erro ao carregar: " + error.message, "err");
+        setStatus(widgetsStatusEl, "Erro ao carregar configuracao: " + error.message, "err");
       }
     }
 
-    async function saveConfig() {
+    async function saveWidgetsConfig(silent) {
       const enabledWidgets = collectEnabledWidgets();
-      setStatus("Salvando configuracao...", "");
+      const modeConfig = collectModeConfig();
+      if (!silent) {
+        setStatus(widgetsStatusEl, "Salvando configuracao...", "");
+      }
+
+      const res = await fetch("/widgets/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled_widgets: enabledWidgets,
+          display_mode: modeConfig.display_mode,
+          hybrid_period_seconds: modeConfig.hybrid_period_seconds,
+          hybrid_show_seconds: modeConfig.hybrid_show_seconds,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Falha ao salvar /widgets/config");
+      }
+
+      const config = await res.json();
+      renderWidgets(config);
+      if (!silent) {
+        setStatus(widgetsStatusEl, "Configuracao salva com sucesso.", "ok");
+      }
+      return config;
+    }
+
+    function renderGifState(state) {
+      latestGifState = state;
+
+      const hasFile = Boolean(state?.has_file);
+      const previewUrl = state?.preview_url || "";
+
+      if (hasFile && previewUrl) {
+        const cacheKey = state?.uploaded_at || Date.now();
+        gifPreviewEl.src = `${previewUrl}?v=${cacheKey}`;
+        gifPreviewEl.hidden = false;
+        gifPreviewEmptyEl.hidden = true;
+      } else {
+        gifPreviewEl.hidden = true;
+        gifPreviewEl.removeAttribute("src");
+        gifPreviewEmptyEl.hidden = false;
+      }
+
+      const maxBytes = Number(state?.max_upload_bytes || 0);
+      gifMetaEl.textContent = [
+        "arquivo: " + (state?.original_name || "-"),
+        "frames: " + Number(state?.frame_count || 0),
+        "duracao total: " + formatDuration(state?.total_duration_ms),
+        "tamanho: " + formatBytes(state?.size_bytes),
+        "limite upload: " + (maxBytes > 0 ? formatBytes(maxBytes) : "-"),
+      ].join(" | ");
+
+      removeGifBtnEl.disabled = !hasFile;
+    }
+
+    async function loadGifState() {
+      setStatus(gifStatusEl, "Carregando status do GIF...", "");
       try {
-        const response = await fetch("/widgets/config", {
+        const res = await fetch("/widgets/custom-gif");
+        if (!res.ok) {
+          throw new Error("Falha ao buscar /widgets/custom-gif");
+        }
+        const state = await res.json();
+        renderGifState(state);
+        setStatus(gifStatusEl, "Status do GIF atualizado.", "ok");
+      } catch (error) {
+        setStatus(gifStatusEl, "Erro ao carregar GIF: " + error.message, "err");
+      }
+    }
+
+    async function uploadGif() {
+      const file = gifFileInputEl.files?.[0];
+      if (!file) {
+        setStatus(gifStatusEl, "Selecione um arquivo GIF antes de enviar.", "warn");
+        return;
+      }
+
+      uploadGifBtnEl.disabled = true;
+      setStatus(gifStatusEl, "Enviando GIF...", "");
+
+      try {
+        const form = new FormData();
+        form.append("file", file);
+
+        const res = await fetch("/widgets/custom-gif/upload", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled_widgets: enabledWidgets }),
+          body: form,
         });
 
-        if (!response.ok) {
-          throw new Error("Falha ao salvar configuracao");
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          const message = detail?.detail || "Falha ao enviar GIF";
+          throw new Error(message);
         }
 
-        const config = await response.json();
-        renderWidgets(config);
-        setStatus("Configuracao salva com sucesso.", "ok");
+        const state = await res.json();
+        renderGifState(state);
+
+        await loadWidgetsConfig();
+        setWidgetToggle("custom_gif", true);
+        await saveWidgetsConfig(true);
+
+        setStatus(gifStatusEl, "GIF enviado com sucesso. custom_gif foi ativado.", "ok");
       } catch (error) {
-        setStatus("Erro ao salvar: " + error.message, "err");
+        setStatus(gifStatusEl, "Erro no upload: " + error.message, "err");
+      } finally {
+        uploadGifBtnEl.disabled = false;
       }
+    }
+
+    async function removeGif() {
+      removeGifBtnEl.disabled = true;
+      setStatus(gifStatusEl, "Removendo GIF...", "");
+
+      try {
+        const res = await fetch("/widgets/custom-gif", { method: "DELETE" });
+        if (!res.ok) {
+          throw new Error("Falha ao remover GIF");
+        }
+
+        const state = await res.json();
+        renderGifState(state);
+        setStatus(gifStatusEl, "GIF removido.", "ok");
+      } catch (error) {
+        setStatus(gifStatusEl, "Erro ao remover GIF: " + error.message, "err");
+      } finally {
+        removeGifBtnEl.disabled = false;
+      }
+    }
+
+    async function activateGifWidget() {
+      const found = setWidgetToggle("custom_gif", true);
+      if (!found) {
+        setStatus(widgetsStatusEl, "Widget custom_gif nao encontrado na lista.", "err");
+        return;
+      }
+
+      try {
+        await saveWidgetsConfig(false);
+      } catch (error) {
+        setStatus(widgetsStatusEl, "Erro ao ativar custom_gif: " + error.message, "err");
+      }
+    }
+
+    async function initPage() {
+      await Promise.all([loadWidgetsConfig(), loadGifState()]);
     }
 
     document.getElementById("enableAllBtn").addEventListener("click", () => {
-      setAllCheckboxes(true);
-      setStatus("Todos marcados. Clique em salvar para aplicar.", "");
+      setAllWidgets(true);
+      setStatus(widgetsStatusEl, "Todos marcados. Clique em salvar para aplicar.", "warn");
     });
 
     document.getElementById("disableAllBtn").addEventListener("click", () => {
-      setAllCheckboxes(false);
-      setStatus("Todos desmarcados. Clique em salvar para aplicar.", "");
+      setAllWidgets(false);
+      setStatus(widgetsStatusEl, "Todos desmarcados. Clique em salvar para aplicar.", "warn");
     });
 
-    document.getElementById("reloadBtn").addEventListener("click", loadConfig);
-    document.getElementById("saveBtn").addEventListener("click", saveConfig);
+    document.getElementById("reloadWidgetsBtn").addEventListener("click", loadWidgetsConfig);
+    document.getElementById("saveWidgetsBtn").addEventListener("click", async () => {
+      try {
+        await saveWidgetsConfig(false);
+      } catch (error) {
+        setStatus(widgetsStatusEl, "Erro ao salvar: " + error.message, "err");
+      }
+    });
 
-    loadConfig();
+    document.getElementById("reloadGifBtn").addEventListener("click", loadGifState);
+    uploadGifBtnEl.addEventListener("click", uploadGif);
+    removeGifBtnEl.addEventListener("click", removeGif);
+    activateGifWidgetBtnEl.addEventListener("click", activateGifWidget);
+
+    displayModeSelectEl.addEventListener("change", () => {
+      syncDisplayModeUi(displayModeSelectEl.value);
+      setStatus(widgetsStatusEl, "Modo alterado. Clique em salvar para aplicar.", "warn");
+    });
+
+    hybridPeriodInputEl.addEventListener("change", () => {
+      syncDisplayModeUi(displayModeSelectEl.value);
+      setStatus(widgetsStatusEl, "Periodo hibrido alterado. Clique em salvar para aplicar.", "warn");
+    });
+
+    hybridShowInputEl.addEventListener("change", () => {
+      syncDisplayModeUi(displayModeSelectEl.value);
+      setStatus(widgetsStatusEl, "Tempo do GIF alterado. Clique em salvar para aplicar.", "warn");
+    });
+
+    initPage();
   </script>
 </body>
 </html>

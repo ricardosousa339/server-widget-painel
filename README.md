@@ -8,12 +8,16 @@ A aplicacao usa widgets orientados a objetos:
 
 - `BaseWidget`: classe abstrata com metodo `get_data()`.
 - `SpotifyWidget`: prioridade maxima (100) quando `currently_playing == true`.
+- `CustomGifWidget`: prioridade 80 quando existe GIF personalizado salvo.
 - `ClockWidget`: fallback permanente (prioridade 0).
 
-Fluxo de decisao:
+Fluxo de decisao (modo `priority`):
 
 1. Tenta `SpotifyWidget`.
-2. Se nao estiver ativo, retorna `ClockWidget`.
+2. Se Spotify nao estiver ativo, tenta `CustomGifWidget`.
+3. Se nenhum dos dois estiver ativo/disponivel, retorna `ClockWidget`.
+
+Observacao: esse fluxo pode mudar conforme o `display_mode` salvo em `/widgets/config`.
 
 ## Requisitos
 
@@ -41,7 +45,11 @@ Edite `.env`:
 - `SPOTIPY_REDIRECT_URI`
 - `SPOTIFY_REFRESH_TOKEN`
 - `SPOTIFY_ACCESS_TOKEN`
+- `FRAME_SOURCE_REFRESH_MS=1500`
 - `WIDGET_CONFIG_PATH=data/widget_config.json`
+- `CUSTOM_GIF_STATE_PATH=data/custom_gif_state.json`
+- `CUSTOM_GIF_UPLOAD_DIR=data/uploads`
+- `CUSTOM_GIF_MAX_UPLOAD_BYTES=8388608`
 
 ## Gerar tokens do Spotify (access + refresh)
 
@@ -284,18 +292,96 @@ Agora existe uma pagina amigavel para habilitar/desabilitar widgets:
 - API (ler): `GET /widgets/config`
 - API (salvar): `POST /widgets/config`
 
+### Modos de exibicao
+
+Campos aceitos no `POST /widgets/config`:
+
+- `display_mode`: `priority`, `custom_only` ou `hybrid`
+- `hybrid_period_seconds`: periodo da janela hibrida (10 a 86400)
+- `hybrid_show_seconds`: tempo do GIF dentro do periodo (1 a 3600, sempre menor que o periodo)
+
+Comportamento de cada modo:
+
+- `priority` (padrao): usa prioridade normal (`spotify` -> `custom_gif` -> `clock`).
+- `custom_only`: tenta mostrar `custom_gif`; se indisponivel, cai para `spotify/clock` para nao deixar a tela vazia.
+- `hybrid`: a cada `hybrid_period_seconds`, tenta mostrar `custom_gif` por `hybrid_show_seconds`; fora dessa janela, usa `spotify/clock`.
+
+Valores padrao:
+
+- `display_mode`: `priority`
+- `hybrid_period_seconds`: `300`
+- `hybrid_show_seconds`: `30`
+
 Exemplo de update via API:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/widgets/config" \
   -H "Content-Type: application/json" \
-  -d '{"enabled_widgets": ["spotify", "clock"]}'
+  -d '{"enabled_widgets": ["spotify", "custom_gif", "clock"]}'
+```
+
+Exemplo de update no modo hibrido:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/widgets/config" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled_widgets": ["spotify", "custom_gif", "clock"],
+    "display_mode": "hybrid",
+    "hybrid_period_seconds": 300,
+    "hybrid_show_seconds": 30
+  }'
+```
+
+Exemplo de leitura de configuracao:
+
+```json
+{
+  "widgets": [
+    {"name": "spotify", "priority": 100, "role": "primary", "enabled": true},
+    {"name": "custom_gif", "priority": 80, "role": "primary", "enabled": true},
+    {"name": "clock", "priority": 0, "role": "fallback", "enabled": true}
+  ],
+  "enabled_widgets": ["clock", "custom_gif", "spotify"],
+  "display_mode": "hybrid",
+  "hybrid_period_seconds": 300,
+  "hybrid_show_seconds": 30,
+  "updated_at": 1711886400
+}
 ```
 
 Persistencia:
 
 - O estado e salvo em `data/widget_config.json`.
 - Caminho configuravel pela variavel `WIDGET_CONFIG_PATH`.
+
+## Widget custom_gif (upload de GIF)
+
+Endpoints principais:
+
+- Estado atual: `GET /widgets/custom-gif`
+- Upload de GIF: `POST /widgets/custom-gif/upload` (multipart form com campo `file`)
+- Download do GIF atual: `GET /widgets/custom-gif/raw`
+- Remocao do GIF atual: `DELETE /widgets/custom-gif`
+
+Exemplo de upload:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/widgets/custom-gif/upload" \
+  -F "file=@/caminho/animacao.gif"
+```
+
+Exemplo de limpeza:
+
+```bash
+curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif"
+```
+
+Persistencia do custom_gif:
+
+- Metadados do widget: `CUSTOM_GIF_STATE_PATH`.
+- Arquivo GIF bruto salvo em: `CUSTOM_GIF_UPLOAD_DIR/custom.gif`.
+- Limite de upload em bytes: `CUSTOM_GIF_MAX_UPLOAD_BYTES`.
 
 ## Observacoes para ESP32
 

@@ -669,6 +669,49 @@
             drawLedOuterBorder(dominant);
         }
 
+        let cachedGifFrameKey = '';
+        let cachedGifCanvas = null;
+
+        function drawCustomGifFrame(data) {
+            const frame = data?.frame;
+            if (!frame || frame.enc !== 'rgb565_base64' || !frame.data) {
+                clearCanvas();
+                ctx.fillStyle = '#ff7f7f';
+                ctx.font = `7px ${CANVAS_FONT}`;
+                ctx.fillText('gif invalido', 8, 18);
+                return;
+            }
+
+            const frameW = Number(frame.w || CANVAS_WIDTH);
+            const frameH = Number(frame.h || CANVAS_HEIGHT);
+            if (!Number.isFinite(frameW) || !Number.isFinite(frameH) || frameW <= 0 || frameH <= 0) {
+                clearCanvas();
+                return;
+            }
+
+            const frameKey = `${frameW}x${frameH}:${frame.data}`;
+            if (frameKey !== cachedGifFrameKey) {
+                const imageData = decodeRgb565ToImageData(frame.data, frameW, frameH);
+                const off = document.createElement('canvas');
+                off.width = frameW;
+                off.height = frameH;
+                const offCtx = off.getContext('2d');
+                offCtx.putImageData(imageData, 0, 0);
+
+                cachedGifCanvas = off;
+                cachedGifFrameKey = frameKey;
+            }
+
+            if (!cachedGifCanvas) {
+                clearCanvas();
+                return;
+            }
+
+            clearCanvas();
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(cachedGifCanvas, 0, 0, frameW, frameH, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
+
         let latestPayload = null;
         let animationId = null;
 
@@ -685,6 +728,8 @@
                 drawClock(data);
             } else if (widget === 'spotify') {
                 drawMediaLike(data, 'spotify');
+            } else if (widget === 'custom_gif') {
+                drawCustomGifFrame(data);
             } else {
                 clearCanvas();
                 ctx.fillStyle = '#ff7f7f';

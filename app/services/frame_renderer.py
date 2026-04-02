@@ -36,6 +36,8 @@ class FrameRenderer:
             self._draw_clock(frame, data)
         elif widget == "spotify":
             self._draw_media_like(frame, data, label=widget, now_ms=render_now_ms)
+        elif widget == "custom_gif":
+            self._draw_custom_gif(frame, data)
         else:
             self._draw_fallback(frame)
 
@@ -59,6 +61,40 @@ class FrameRenderer:
             letter_spacing=0,
         )
         self._force_monochrome(frame, threshold=96)
+
+    def _draw_custom_gif(self, frame: Image.Image, data: dict[str, Any]) -> None:
+        frame_payload = data.get("frame")
+        if not isinstance(frame_payload, dict):
+            self._draw_fallback(frame)
+            return
+
+        if str(frame_payload.get("enc") or "") != "rgb565_base64":
+            self._draw_fallback(frame)
+            return
+
+        try:
+            src_w = int(frame_payload.get("w") or self.width)
+            src_h = int(frame_payload.get("h") or self.height)
+        except (TypeError, ValueError):
+            self._draw_fallback(frame)
+            return
+
+        encoded = str(frame_payload.get("data") or "")
+        if not encoded or src_w <= 0 or src_h <= 0:
+            self._draw_fallback(frame)
+            return
+
+        try:
+            decoded = self._decode_rgb565_to_image(encoded, src_w, src_h)
+        except ValueError:
+            self._draw_fallback(frame)
+            return
+
+        if decoded.size != (self.width, self.height):
+            resampling = getattr(Image, "Resampling", Image)
+            decoded = decoded.resize((self.width, self.height), resampling.NEAREST)
+
+        frame.paste(decoded, (0, 0))
 
     def _draw_clock(self, frame: Image.Image, data: dict[str, Any]) -> None:
         clock_text = str(data.get("time") or "--:--")

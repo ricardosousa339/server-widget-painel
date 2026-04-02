@@ -23,6 +23,15 @@ class Settings:
     spotify_access_token: str = os.getenv("SPOTIFY_ACCESS_TOKEN", "")
 
     widget_config_path: Path = Path(os.getenv("WIDGET_CONFIG_PATH", "data/widget_config.json"))
+    custom_gif_state_path: Path = Path(
+        os.getenv("CUSTOM_GIF_STATE_PATH", "data/custom_gif_state.json")
+    )
+    custom_gif_upload_dir: Path = Path(
+        os.getenv("CUSTOM_GIF_UPLOAD_DIR", "data/uploads")
+    )
+    custom_gif_max_upload_bytes: int = int(
+        os.getenv("CUSTOM_GIF_MAX_UPLOAD_BYTES", str(8 * 1024 * 1024))
+    )
 
 
 def get_settings() -> Settings:

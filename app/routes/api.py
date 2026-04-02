@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
 
 from app.dependencies import (
+    custom_gif_widget,
     frame_source_cache,
     frame_renderer,
     load_endpoints_guide_template,
@@ -16,6 +17,7 @@ from app.dependencies import (
 )
 from app.schemas import WidgetConfigUpdate
 from app.services.image_service import ImageMode
+from app.widgets.custom_gif_widget import CustomGifWidgetError
 
 router = APIRouter()
 
@@ -35,6 +37,8 @@ def root() -> dict[str, Any]:
         "friendly_docs": "/endpoints",
         "widgets_config_ui": "/config/widgets",
         "widgets_config_api": "/widgets/config",
+        "custom_gif_api": "/widgets/custom-gif",
+        "custom_gif_upload": "/widgets/custom-gif/upload",
         "health": "/health",
         "screen": "/screen",
         "screen_frame": "/screen/frame",
@@ -80,7 +84,44 @@ def get_widgets_config() -> dict[str, Any]:
 
 @router.post("/widgets/config")
 def update_widgets_config(update: WidgetConfigUpdate) -> dict[str, Any]:
-    return widget_manager.update_enabled_widgets(update.normalized_enabled_widgets())
+    return widget_manager.update_config(
+        enabled_widgets=update.normalized_enabled_widgets(),
+        display_mode=update.normalized_display_mode(),
+        hybrid_period_seconds=update.normalized_hybrid_period_seconds(),
+        hybrid_show_seconds=update.normalized_hybrid_show_seconds(),
+    )
+
+
+@router.get("/widgets/custom-gif")
+def get_custom_gif_state() -> dict[str, Any]:
+    return custom_gif_widget.get_state()
+
+
+@router.get("/widgets/custom-gif/raw")
+def get_custom_gif_raw() -> FileResponse:
+    raw_path = custom_gif_widget.raw_file_path()
+    if raw_path is None:
+        raise HTTPException(status_code=404, detail="Nenhum GIF configurado")
+
+    return FileResponse(path=str(raw_path), media_type="image/gif", filename=raw_path.name)
+
+
+@router.post("/widgets/custom-gif/upload")
+async def upload_custom_gif(file: UploadFile = File(...)) -> dict[str, Any]:
+    raw_bytes = await file.read()
+    try:
+        return custom_gif_widget.save_gif(
+            filename=file.filename or "custom.gif",
+            content_type=file.content_type or "image/gif",
+            raw_bytes=raw_bytes,
+        )
+    except CustomGifWidgetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/widgets/custom-gif")
+def delete_custom_gif() -> dict[str, Any]:
+    return custom_gif_widget.clear_gif()
 
 
 @router.get("/screen/frame")

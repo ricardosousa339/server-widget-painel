@@ -120,6 +120,11 @@
       color: #1b1206;
     }
 
+    .delete {
+      background: var(--danger);
+      color: #220909;
+    }
+
     .path {
       font-family: "Consolas", "Courier New", monospace;
       font-size: 0.95rem;
@@ -226,7 +231,7 @@
           <span class="path">/screen?img_mode=rgb565_base64</span>
         </header>
         <div class="card-body">
-          <p class="desc">Payload ativo escolhido pelo gerenciador de widgets (spotify, clock).</p>
+          <p class="desc">Payload ativo escolhido pelo gerenciador de widgets (spotify, custom_gif, clock).</p>
           <p class="hint">img_mode: rgb565_base64 (padrao), rgb_base64, rgb_array</p>
           <pre>curl "http://127.0.0.1:8000/screen?img_mode=rgb565_base64"</pre>
         </div>
@@ -261,7 +266,7 @@ http://127.0.0.1:8000/preview/frame</pre>
           <span class="path">/config/widgets e /widgets/config</span>
         </header>
         <div class="card-body">
-          <p class="desc">Tela amigavel para escolher widgets ativos e endpoint JSON para leitura da configuracao.</p>
+          <p class="desc">Tela amigavel para escolher widgets ativos, enviar GIF customizado e endpoint JSON para leitura da configuracao.</p>
           <pre>http://127.0.0.1:8000/config/widgets
 curl http://127.0.0.1:8000/widgets/config</pre>
         </div>
@@ -276,7 +281,42 @@ curl http://127.0.0.1:8000/widgets/config</pre>
           <p class="desc">Atualiza os widgets habilitados no backend.</p>
           <pre>curl -X POST "http://127.0.0.1:8000/widgets/config" \
   -H "Content-Type: application/json" \
-  -d '{"enabled_widgets": ["spotify", "clock"]}'</pre>
+  -d '{"enabled_widgets": ["spotify", "custom_gif", "clock"]}'</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/widgets/custom-gif e /widgets/custom-gif/raw</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Consulta estado atual do widget custom_gif e baixa o GIF bruto salvo.</p>
+          <pre>curl http://127.0.0.1:8000/widgets/custom-gif
+curl -OJ http://127.0.0.1:8000/widgets/custom-gif/raw</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method post">POST</span>
+          <span class="path">/widgets/custom-gif/upload</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Faz upload de um arquivo GIF e atualiza o estado do widget custom_gif.</p>
+          <pre>curl -X POST "http://127.0.0.1:8000/widgets/custom-gif/upload" \
+  -F "file=@/caminho/animacao.gif"</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method delete">DEL</span>
+          <span class="path">/widgets/custom-gif</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Remove o GIF personalizado salvo e limpa o estado do widget custom_gif.</p>
+          <pre>curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif"</pre>
         </div>
       </article>
     </section>

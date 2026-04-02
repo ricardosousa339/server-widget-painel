@@ -43,7 +43,14 @@ O sketch usa:
 Quando o widget recebido for:
 
 - `spotify`: renderiza a capa 32x32 e texto lateral.
+- `custom_gif`: renderiza o frame RGB565 completo no painel 64x32.
 - `clock`: renderiza hora/data como fallback.
+
+Observacao sobre animacao GIF:
+
+- O backend envia um frame por requisicao em `data.frame` (RGB565 base64).
+- O sketch aumenta automaticamente a frequencia de polling quando `custom_gif` esta ativo
+   para deixar a animacao mais fluida.
 
 ## Fallback de relogio local (quando API cair)
 

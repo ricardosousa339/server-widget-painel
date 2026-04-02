@@ -10,6 +10,7 @@ from app.services.screen_payload_cache import ScreenPayloadCache
 from app.services.widget_config_store import WidgetConfigStore
 from app.services.widget_manager import WidgetManager
 from app.widgets.clock_widget import ClockWidget
+from app.widgets.custom_gif_widget import CustomGifWidget
 from app.widgets.spotify_widget import SpotifyWidget
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -26,13 +27,21 @@ image_processor = ImageProcessor(
     timeout_seconds=settings.request_timeout_seconds,
 )
 spotify_widget = SpotifyWidget(settings=settings, image_processor=image_processor, priority=100)
+custom_gif_widget = CustomGifWidget(
+    state_path=settings.custom_gif_state_path,
+    upload_dir=settings.custom_gif_upload_dir,
+    priority=80,
+    frame_width=64,
+    frame_height=32,
+    max_upload_bytes=settings.custom_gif_max_upload_bytes,
+)
 clock_widget = ClockWidget(priority=0)
 widget_config_store = WidgetConfigStore(
     state_path=settings.widget_config_path,
-    available_widgets=[spotify_widget.name, clock_widget.name],
+    available_widgets=[spotify_widget.name, custom_gif_widget.name, clock_widget.name],
 )
 widget_manager = WidgetManager(
-    primary_widgets=[spotify_widget],
+    primary_widgets=[spotify_widget, custom_gif_widget],
     fallback_widget=clock_widget,
     config_store=widget_config_store,
 )
