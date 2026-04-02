@@ -8,14 +8,12 @@ A aplicacao usa widgets orientados a objetos:
 
 - `BaseWidget`: classe abstrata com metodo `get_data()`.
 - `SpotifyWidget`: prioridade maxima (100) quando `currently_playing == true`.
-- `BookWidget`: prioridade intermediaria (50) para capa de livro, com estado manual via API.
 - `ClockWidget`: fallback permanente (prioridade 0).
 
 Fluxo de decisao:
 
 1. Tenta `SpotifyWidget`.
-2. Se nao estiver ativo, tenta `BookWidget`.
-3. Se nenhum ativo, retorna `ClockWidget`.
+2. Se nao estiver ativo, retorna `ClockWidget`.
 
 ## Requisitos
 
@@ -43,7 +41,6 @@ Edite `.env`:
 - `SPOTIPY_REDIRECT_URI`
 - `SPOTIFY_REFRESH_TOKEN`
 - `SPOTIFY_ACCESS_TOKEN`
-- `BOOK_STATE_PATH=data/current_book.json`
 - `WIDGET_CONFIG_PATH=data/widget_config.json`
 
 ## Gerar tokens do Spotify (access + refresh)
@@ -299,25 +296,6 @@ Persistencia:
 
 - O estado e salvo em `data/widget_config.json`.
 - Caminho configuravel pela variavel `WIDGET_CONFIG_PATH`.
-
-## Endpoints auxiliares do livro
-
-### `GET /book/current`
-Retorna o estado atual do widget de livro.
-
-### `POST /book/current`
-Atualiza estado atual do widget de livro.
-
-Exemplo:
-
-```json
-{
-  "is_reading": true,
-  "title": "Clean Code",
-  "author": "Robert C. Martin",
-  "cover_url": "https://..."
-}
-```
 
 ## Observacoes para ESP32
 

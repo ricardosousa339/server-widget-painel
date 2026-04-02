@@ -26,7 +26,7 @@ constexpr int16_t TITLE_Y = 8;
 constexpr int16_t AUTHOR_Y = 19;
 constexpr int16_t PROGRESS_Y = 29;
 
-// Busca de dados em baixa frequencia (Spotify/Book/Clock).
+// Busca de dados em baixa frequencia (Spotify/Clock).
 constexpr uint32_t SOURCE_POLL_INTERVAL_MS = 1500;
 // Render local em alta frequencia para scroll suave pixel-a-pixel.
 constexpr uint32_t RENDER_INTERVAL_MS = 33;
@@ -49,7 +49,6 @@ enum WidgetKind {
   WidgetNone,
   WidgetClock,
   WidgetSpotify,
-  WidgetBook,
 };
 
 struct RenderState {
@@ -247,22 +246,6 @@ bool updateStateFromPayload(const String& payload) {
     return true;
   }
 
-  if (strcmp(widget, "book") == 0) {
-    gState.widget = WidgetBook;
-    gState.title = data["title"] | "-";
-    gState.author = data["author"] | "-";
-    gState.progressMs = 0;
-    gState.durationMs = 0;
-
-    if (data["cover"].is<JsonObjectConst>()) {
-      gState.hasCover = decodeAndScaleCover(data["cover"].as<JsonObjectConst>(), gState.coverScaled565);
-    } else {
-      gState.hasCover = false;
-      gState.coverScaled565.clear();
-    }
-    return true;
-  }
-
   if (strcmp(widget, "clock") == 0) {
     gState.widget = WidgetClock;
     gState.timeText = data["time"] | "--:--";
@@ -295,11 +278,6 @@ void renderCurrentFrame(uint32_t nowMs) {
 
   if (gState.widget == WidgetSpotify) {
     renderMediaFrame(true, nowMs);
-    return;
-  }
-
-  if (gState.widget == WidgetBook) {
-    renderMediaFrame(false, nowMs);
     return;
   }
 

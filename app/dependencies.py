@@ -9,7 +9,6 @@ from app.services.image_service import ImageProcessor
 from app.services.screen_payload_cache import ScreenPayloadCache
 from app.services.widget_config_store import WidgetConfigStore
 from app.services.widget_manager import WidgetManager
-from app.widgets.book_widget import BookWidget
 from app.widgets.clock_widget import ClockWidget
 from app.widgets.spotify_widget import SpotifyWidget
 
@@ -27,18 +26,13 @@ image_processor = ImageProcessor(
     timeout_seconds=settings.request_timeout_seconds,
 )
 spotify_widget = SpotifyWidget(settings=settings, image_processor=image_processor, priority=100)
-book_widget = BookWidget(
-    image_processor=image_processor,
-    state_path=settings.book_state_path,
-    priority=50,
-)
 clock_widget = ClockWidget(priority=0)
 widget_config_store = WidgetConfigStore(
     state_path=settings.widget_config_path,
-    available_widgets=[spotify_widget.name, book_widget.name, clock_widget.name],
+    available_widgets=[spotify_widget.name, clock_widget.name],
 )
 widget_manager = WidgetManager(
-    primary_widgets=[spotify_widget, book_widget],
+    primary_widgets=[spotify_widget],
     fallback_widget=clock_widget,
     config_store=widget_config_store,
 )

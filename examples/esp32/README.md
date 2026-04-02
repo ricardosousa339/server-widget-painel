@@ -42,7 +42,7 @@ O sketch usa:
 
 Quando o widget recebido for:
 
-- `spotify` ou `book`: renderiza a capa 32x32 e um label lateral.
+- `spotify`: renderiza a capa 32x32 e texto lateral.
 - `clock`: renderiza hora/data como fallback.
 
 ## Fallback de relogio local (quando API cair)

@@ -226,7 +226,7 @@
           <span class="path">/screen?img_mode=rgb565_base64</span>
         </header>
         <div class="card-body">
-          <p class="desc">Payload ativo escolhido pelo gerenciador de widgets (spotify, book, clock).</p>
+          <p class="desc">Payload ativo escolhido pelo gerenciador de widgets (spotify, clock).</p>
           <p class="hint">img_mode: rgb565_base64 (padrao), rgb_base64, rgb_array</p>
           <pre>curl "http://127.0.0.1:8000/screen?img_mode=rgb565_base64"</pre>
         </div>
@@ -240,35 +240,6 @@
         <div class="card-body">
           <p class="desc">Frame 64x32 pronto para renderizacao (RGB565 base64), incluindo metadados de cache/fonte.</p>
           <pre>curl "http://127.0.0.1:8000/screen/frame?refresh_source=true"</pre>
-        </div>
-      </article>
-
-      <article class="card">
-        <header class="card-head">
-          <span class="method get">GET</span>
-          <span class="path">/book/current</span>
-        </header>
-        <div class="card-body">
-          <p class="desc">Estado atual do widget de livro.</p>
-          <pre>curl http://127.0.0.1:8000/book/current</pre>
-        </div>
-      </article>
-
-      <article class="card">
-        <header class="card-head">
-          <span class="method post">POST</span>
-          <span class="path">/book/current</span>
-        </header>
-        <div class="card-body">
-          <p class="desc">Atualiza estado do livro para forcar exibicao quando desejado.</p>
-          <pre>curl -X POST "http://127.0.0.1:8000/book/current" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "is_reading": true,
-    "title": "Clean Code",
-    "author": "Robert C. Martin",
-    "cover_url": "https://exemplo/capa.jpg"
-  }'</pre>
         </div>
       </article>
 

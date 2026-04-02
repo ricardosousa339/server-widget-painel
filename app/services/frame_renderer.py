@@ -34,7 +34,7 @@ class FrameRenderer:
 
         if widget == "clock":
             self._draw_clock(frame, data)
-        elif widget in {"spotify", "book"}:
+        elif widget == "spotify":
             self._draw_media_like(frame, data, label=widget, now_ms=render_now_ms)
         else:
             self._draw_fallback(frame)

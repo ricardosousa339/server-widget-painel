@@ -6,7 +6,6 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from app.dependencies import (
-    book_widget,
     frame_source_cache,
     frame_renderer,
     load_endpoints_guide_template,
@@ -15,7 +14,7 @@ from app.dependencies import (
     load_widgets_config_template,
     widget_manager,
 )
-from app.schemas import BookStateUpdate, WidgetConfigUpdate
+from app.schemas import WidgetConfigUpdate
 from app.services.image_service import ImageMode
 
 router = APIRouter()
@@ -100,14 +99,3 @@ async def screen_frame(
     response["source_age_ms"] = frame_source_cache.age_ms()
     response["source_refresh_ms"] = frame_source_cache.refresh_interval_ms
     return response
-
-
-@router.get("/book/current")
-def get_current_book() -> dict[str, Any]:
-    return book_widget.get_state()
-
-
-@router.post("/book/current")
-def update_current_book(update: BookStateUpdate) -> dict[str, Any]:
-    payload = update.to_payload()
-    return book_widget.update_state(payload)
