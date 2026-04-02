@@ -102,6 +102,123 @@ Ele:
 3. Instala dependencias.
 4. Sobe o servidor em `0.0.0.0:8000`.
 
+## Rodar como servico no Windows (24x7)
+
+Para quem roda o projeto no WSL, o caminho mais estavel e usar o Agendador de Tarefas do Windows
+com um script de vigilancia (`scripts/ensure_server.sh`) que sobe o backend apenas quando necessario.
+
+### Modo rapido (recomendado)
+
+No CMD do Windows como Administrador, execute na raiz do projeto:
+
+```bat
+setup_windows_wsl_service.bat
+```
+
+Esse script:
+
+1. Ajusta energia para nao suspender em AC e nao pausar ao fechar tampa.
+2. Cria tarefa no logon (`ServerWidgetPainel-OnLogon`).
+3. Cria watchdog por minuto (`ServerWidgetPainel-Watchdog`).
+4. Detecta o IP atual do WSL e configura `portproxy` (Windows:8000 -> WSL:8000).
+5. Libera a porta 8000 no firewall.
+6. Dispara a inicializacao imediatamente.
+
+Importante: com backend rodando dentro do WSL, agendar em `SYSTEM` no boot pode falhar,
+porque a distro WSL e por usuario. O modo `ONLOGON` do seu usuario e o mais confiavel.
+
+Se sua distro/caminho no WSL forem diferentes:
+
+```bat
+setup_windows_wsl_service.bat "Ubuntu-22.04" "/home/usuario/projeto"
+```
+
+Para iniciar/reiniciar manualmente pelo Windows durante desenvolvimento:
+
+```bat
+run_server_wsl_windows.bat
+```
+
+Observacao: se executado como Administrador, esse script tambem atualiza o `portproxy`
+para o IP atual do WSL (util quando o WSL troca de IP apos reboot).
+
+Para remover toda configuracao criada (tarefas + firewall):
+
+```bat
+remove_windows_wsl_service.bat
+```
+
+Esse remove tambem o `portproxy` da porta 8000.
+
+### Se `http://IP_DO_WINDOWS:8000/health` falhar
+
+1. Rode no CMD como Administrador:
+
+```bat
+setup_windows_wsl_service.bat
+```
+
+2. Teste local no Windows:
+
+```bat
+curl http://127.0.0.1:8000/health
+curl http://SEU_IP_LAN:8000/health
+```
+
+3. Se o primeiro funcionar e o segundo nao, confira se o celular esta na mesma rede (nao Guest) e sem VPN.
+
+### 1) Ajustar energia para nao pausar com tampa fechada
+
+Execute no PowerShell (Administrador):
+
+```powershell
+# Nao suspender na tomada
+powercfg /change standby-timeout-ac 0
+
+# Acao da tampa na tomada: "Nao fazer nada"
+powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
+powercfg /SETACTIVE SCHEME_CURRENT
+```
+
+### 2) Criar tarefa de inicializacao (logon)
+
+No Prompt de Comando (Administrador), ajuste o nome da distro e caminho do projeto se necessario:
+
+```bat
+schtasks /Create /TN "ServerWidgetPainel-OnLogon" /SC ONLOGON /DELAY 0000:20 /RL HIGHEST /TR "wsl.exe -d Ubuntu --cd /home/ricardohsm/projetos/server-widget-painel /bin/bash -lc './scripts/ensure_server.sh'" /F
+```
+
+### 3) Criar tarefa de vigilancia (a cada 1 minuto)
+
+```bat
+schtasks /Create /TN "ServerWidgetPainel-Watchdog" /SC MINUTE /MO 1 /RL HIGHEST /TR "wsl.exe -d Ubuntu --cd /home/ricardohsm/projetos/server-widget-painel /bin/bash -lc './scripts/ensure_server.sh'" /F
+```
+
+### 4) Testar imediatamente
+
+```bat
+schtasks /Run /TN "ServerWidgetPainel-OnLogon"
+```
+
+### 5) Verificar status
+
+```bat
+schtasks /Query /TN "ServerWidgetPainel-OnLogon"
+schtasks /Query /TN "ServerWidgetPainel-Watchdog"
+```
+
+Se quiser validar pela API:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Observacoes:
+
+- O script `scripts/ensure_server.sh` nao reinicia sem necessidade; ele apenas sobe quando o health nao responde.
+- Em queda de processo, a tarefa por minuto religa automaticamente.
+- Em notebooks, para manter 24x7, deixe ligado na tomada e com as configuracoes de energia acima.
+
 ## Abrir firewall no Windows
 
 ### CMD (Administrador)
