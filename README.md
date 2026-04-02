@@ -8,7 +8,7 @@ A aplicacao usa widgets orientados a objetos:
 
 - `BaseWidget`: classe abstrata com metodo `get_data()`.
 - `SpotifyWidget`: prioridade maxima (100) quando `currently_playing == true`.
-- `CustomGifWidget`: prioridade 80 quando existe GIF personalizado salvo.
+- `CustomGifWidget`: biblioteca de GIFs custom, com GIF separado para a campainha, e prioridade 80 quando existe GIF custom ativo.
 - `ClockWidget`: fallback permanente (prioridade 0).
 
 Fluxo de decisao (modo `priority`):
@@ -47,7 +47,7 @@ Edite `.env`:
 - `SPOTIFY_ACCESS_TOKEN`
 - `FRAME_SOURCE_REFRESH_MS=1500`
 - `WIDGET_CONFIG_PATH=data/widget_config.json`
-- `CUSTOM_GIF_STATE_PATH=data/custom_gif_state.json`
+- `CUSTOM_GIF_STATE_PATH=data/custom_gifs_state.json`
 - `CUSTOM_GIF_UPLOAD_DIR=data/uploads`
 - `CUSTOM_GIF_MAX_UPLOAD_BYTES=8388608`
 - `DOORBELL_ALERT_DEFAULT_SECONDS=8`
@@ -401,32 +401,44 @@ Persistencia:
 - O estado e salvo em `data/widget_config.json`.
 - Caminho configuravel pela variavel `WIDGET_CONFIG_PATH`.
 
-## Widget custom_gif (upload de GIF)
+## Widget custom_gif (biblioteca de GIFs)
 
 Endpoints principais:
 
-- Estado atual: `GET /widgets/custom-gif`
-- Upload de GIF: `POST /widgets/custom-gif/upload` (multipart form com campo `file`)
-- Download do GIF atual: `GET /widgets/custom-gif/raw`
-- Remocao do GIF atual: `DELETE /widgets/custom-gif`
+- Estado atual da biblioteca: `GET /widgets/custom-gif`
+- Download do asset selecionado: `GET /widgets/custom-gif/raw?kind=custom&asset_id=...`
+- Pacote de playback para o ESP32: `GET /widgets/custom-gif/playback?kind=custom&asset_id=...`
+- Upload de GIF: `POST /widgets/custom-gif/upload` (multipart form com `file`, `kind` e `active`)
+- Ativar ou desativar um asset: `PATCH /widgets/custom-gif/{asset_id}`
+- Remocao de um asset: `DELETE /widgets/custom-gif/{asset_id}`
+- Limpar a biblioteca de um kind: `DELETE /widgets/custom-gif?kind=custom` ou `kind=doorbell`
 
 Exemplo de upload:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/widgets/custom-gif/upload" \
-  -F "file=@/caminho/animacao.gif"
+  -F "file=@/caminho/animacao.gif" \
+  -F "kind=custom" \
+  -F "active=true"
+```
+
+Exemplo de playback:
+
+```bash
+curl "http://127.0.0.1:8000/widgets/custom-gif/playback?kind=custom"
 ```
 
 Exemplo de limpeza:
 
 ```bash
-curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif"
+curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif?kind=custom"
 ```
 
 Persistencia do custom_gif:
 
-- Metadados do widget: `CUSTOM_GIF_STATE_PATH`.
-- Arquivo GIF bruto salvo em: `CUSTOM_GIF_UPLOAD_DIR/custom.gif`.
+- Metadados da biblioteca: `CUSTOM_GIF_STATE_PATH`.
+- GIFs custom salvos em: `CUSTOM_GIF_UPLOAD_DIR/custom_gifs/`.
+- GIF da campainha salvo em: `CUSTOM_GIF_UPLOAD_DIR/doorbell_gif/`.
 - Limite de upload em bytes: `CUSTOM_GIF_MAX_UPLOAD_BYTES`.
 
 ## Integracao Home Assistant (campainha Smart Life)
@@ -440,12 +452,12 @@ Foi adicionada uma ponte REST para automacao de campainha via Home Assistant:
 Comportamento do trigger:
 
 - Ativa uma janela temporaria de alerta (`TTL`) em memoria.
-- Durante essa janela, o backend tenta priorizar `custom_gif` no `/screen`.
+- Durante essa janela, o backend tenta priorizar o GIF da campainha (`kind=doorbell`) no `/screen`.
 - Nao altera `display_mode` nem sobrescreve `enabled_widgets` em `widget_config.json`.
 
 Observacao importante:
 
-- Para aparecer no painel, e necessario ter um GIF previamente salvo no `custom_gif`.
+- O ideal e configurar um GIF separado para a campainha, mas o backend ainda pode usar um GIF custom ativo como fallback se o asset `doorbell` nao existir.
 
 Exemplo de trigger (8 segundos por padrao):
 

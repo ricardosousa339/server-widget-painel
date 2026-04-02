@@ -37,6 +37,7 @@ class WidgetManager:
         )
         self._doorbell_alert_until: float = 0.0
         self._doorbell_last_trigger_at: float = 0.0
+        self._doorbell_last_trigger_ms: int = 0
         self._doorbell_last_source: str | None = None
 
     async def get_screen_payload(self, image_mode: ImageMode = "rgb565_base64") -> dict[str, Any]:
@@ -44,11 +45,17 @@ class WidgetManager:
 
         doorbell_state = self.get_doorbell_alert_state()
         if doorbell_state["active"]:
+            playhead_ms = None
+            if doorbell_state["last_trigger_ms"] is not None:
+                playhead_ms = max(0, int(time.time() * 1000) - int(doorbell_state["last_trigger_ms"]))
+
             custom_payload = await self._payload_for_widget(
                 self.CUSTOM_WIDGET_NAME,
                 enabled_widgets=enabled_widgets,
                 image_mode=image_mode,
                 ignore_enabled=True,
+                kind="doorbell",
+                playhead_ms=playhead_ms,
             )
             if custom_payload is not None:
                 data = custom_payload.get("data")
@@ -57,6 +64,7 @@ class WidgetManager:
                         "active": True,
                         "remaining_seconds": doorbell_state["remaining_seconds"],
                         "last_source": doorbell_state["last_source"],
+                        "playhead_ms": playhead_ms,
                     }
                 return custom_payload
 
@@ -166,6 +174,7 @@ class WidgetManager:
         duration = self._normalize_doorbell_duration(duration_seconds)
         self._doorbell_alert_until = max(self._doorbell_alert_until, now + duration)
         self._doorbell_last_trigger_at = now
+        self._doorbell_last_trigger_ms = int(now * 1000)
         self._doorbell_last_source = source
         return self.get_doorbell_alert_state()
 
@@ -190,6 +199,7 @@ class WidgetManager:
             "default_seconds": self.doorbell_alert_default_seconds,
             "max_seconds": self.doorbell_alert_max_seconds,
             "last_trigger_ts": last_trigger_ts,
+            "last_trigger_ms": self._doorbell_last_trigger_ms or None,
             "last_source": self._doorbell_last_source,
         }
 
@@ -247,13 +257,14 @@ class WidgetManager:
         enabled_widgets: set[str],
         image_mode: ImageMode,
         ignore_enabled: bool = False,
+        **kwargs: Any,
     ) -> dict[str, Any] | None:
         widget = self.primary_widget_by_name.get(widget_name)
         if widget is None:
             return None
         if not ignore_enabled and widget_name not in enabled_widgets:
             return None
-        return await widget.get_data(image_mode=image_mode)
+        return await widget.get_data(image_mode=image_mode, **kwargs)
 
     async def _fallback_payload(
         self,

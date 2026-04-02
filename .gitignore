@@ -9,3 +9,8 @@ __pycache__/
 
 # Home Assistant local runtime/configuration state
 data/homeassistant/
+
+# Custom GIF gallery runtime state
+data/custom_gifs_state.json
+data/uploads/custom_gifs/
+data/uploads/doorbell_gif/

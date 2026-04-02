@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include <vector>
+#include <utility>
 #include <cstring>
 #include <cctype>
 
@@ -30,11 +31,12 @@ constexpr int16_t PROGRESS_Y = 29;
 constexpr uint32_t SOURCE_POLL_INTERVAL_MS = 1500;
 // Quando custom_gif estiver ativo, aumenta o polling para animacao mais fluida.
 constexpr uint32_t SOURCE_POLL_INTERVAL_GIF_MS = 90;
+constexpr uint32_t SOURCE_POLL_INTERVAL_GIF_CACHE_MS = 500;
 // Render local em alta frequencia para scroll suave pixel-a-pixel.
 constexpr uint32_t RENDER_INTERVAL_MS = 33;
 constexpr uint32_t HTTP_TIMEOUT_MS = 1800;
 constexpr uint32_t API_STALE_TIMEOUT_MS = 5000;
-constexpr size_t JSON_DOC_CAPACITY = 16 * 1024;
+constexpr size_t JSON_DOC_CAPACITY = 64 * 1024;
 constexpr uint32_t TITLE_SCROLL_TICK_MS = 70;
 constexpr uint32_t AUTHOR_SCROLL_TICK_MS = 90;
 constexpr uint32_t NTP_RETRY_INTERVAL_MS = 5000;
@@ -74,6 +76,18 @@ struct RenderState {
   uint16_t customFrameW = 0;
   uint16_t customFrameH = 0;
   std::vector<uint16_t> customFrame565;
+
+  bool hasCustomPlayback = false;
+  String customPlaybackAssetId = "";
+  String customPlaybackAssetKind = "";
+  String customPlaybackAssetName = "";
+  uint32_t customPlaybackAssetRevision = 0;
+  uint16_t customPlaybackW = 0;
+  uint16_t customPlaybackH = 0;
+  std::vector<uint16_t> customPlayback565;
+  std::vector<uint32_t> customPlaybackDurationsMs;
+  uint32_t customPlaybackTotalDurationMs = 0;
+  uint32_t customPlaybackStartedMs = 0;
 };
 
 RenderState gState;
@@ -92,83 +106,172 @@ bool ntpConfigured = false;
 bool ntpSynced = false;
 
 void connectWiFi();
-bool fetchScreenPayload(String& payload);
-bool updateStateFromPayload(const String& payload);
-void renderCurrentFrame(uint32_t nowMs);
-bool renderLocalClockFallback();
-bool getLocalClockStrings(String& timeOut, String& dateOut, String& weekdayOut);
-void maintainNtpClock(uint32_t nowMs);
-void renderClockFrame();
-void renderMediaFrame(bool isSpotify, uint32_t nowMs);
-void renderCustomGifFrame();
-void drawCoverScaled(int16_t x0, int16_t y0);
-bool decodeAndScaleCover(const JsonObjectConst& cover, std::vector<uint16_t>& out);
-bool decodeRgb565Frame(
-  const JsonObjectConst& frame,
-  std::vector<uint16_t>& out,
-  uint16_t& outW,
-  uint16_t& outH
-);
-uint16_t measureTextWidth(const String& text);
-void drawMarqueeText(
-  const String& text,
-  int16_t baseX,
-  int16_t y,
-  int16_t visibleWidth,
-  uint32_t nowMs,
-  uint32_t tickMs,
-  uint8_t gapChars,
-  String& stateKey,
-  uint32_t& stateStartedMs,
-  uint16_t color
-);
-String compactArtistName(const String& artist);
-void renderStatus(const char* line1, const char* line2 = "");
-bool decodeBase64(const char* encoded, std::vector<uint8_t>& out);
-
-void setup() {
-  Serial.begin(115200);
-
-  // Customize HUB75 GPIO mapping here if needed for your board.
-  display = new MatrixPanel_I2S_DMA(mxconfig);
-  if (!display->begin()) {
-    Serial.println("Falha ao inicializar painel HUB75");
-    return;
+bool updateStateFromPayload(const String& payload, uint32_t nowMs) {
+  DynamicJsonDocument doc(JSON_DOC_CAPACITY);
+  const DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Serial.printf("JSON invalido: %s\n", err.c_str());
+    return false;
   }
 
-  display->setBrightness8(96);
-  display->clearScreen();
-  display->setTextWrap(false);
-  display->setTextSize(1);
+  const char* widget = doc["widget"] | "none";
+  const JsonObjectConst data = doc["data"].as<JsonObjectConst>();
 
-  gState.coverScaled565.reserve(static_cast<size_t>(COVER_TARGET_SIZE) * COVER_TARGET_SIZE);
-  gState.customFrame565.reserve(static_cast<size_t>(PANEL_WIDTH) * PANEL_HEIGHT);
+  gState.widgetName = widget;
 
-  renderStatus("Booting...", "WiFi connect");
-  connectWiFi();
+  if (strcmp(widget, "spotify") == 0) {
+    gState.widget = WidgetSpotify;
+    gState.title = data["track"] | "-";
+    gState.author = compactArtistName(data["artist"] | "-");
+    gState.progressMs = data["progress_ms"] | 0;
+    gState.durationMs = data["duration_ms"] | 0;
+
+    if (data["cover"].is<JsonObjectConst>()) {
+      gState.hasCover = decodeAndScaleCover(data["cover"].as<JsonObjectConst>(), gState.coverScaled565);
+    } else {
+      gState.hasCover = false;
+      gState.coverScaled565.clear();
+    }
+
+    gState.hasCustomFrame = false;
+    gState.customFrameW = 0;
+    gState.customFrameH = 0;
+    gState.customFrame565.clear();
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
+    return true;
+  }
+
+  if (strcmp(widget, "clock") == 0) {
+    gState.widget = WidgetClock;
+    gState.timeText = data["time"] | "--:--";
+    gState.dateText = data["date"] | "--/--";
+    gState.weekdayText = data["weekday"] | "---";
+    gState.hasCover = false;
+    gState.coverScaled565.clear();
+
+    gState.hasCustomFrame = false;
+    gState.customFrameW = 0;
+    gState.customFrameH = 0;
+    gState.customFrame565.clear();
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
+    return true;
+  }
+
+  if (strcmp(widget, "custom_gif") == 0) {
+    gState.widget = WidgetCustomGif;
+    gState.title = data["asset_name"] | data["name"] | "custom_gif";
+    gState.author = "-";
+    gState.progressMs = 0;
+    gState.durationMs = 0;
+
+    gState.hasCover = false;
+    gState.coverScaled565.clear();
+
+    const char* assetId = data["asset_id"] | "";
+    const char* assetKind = data["asset_kind"] | "custom";
+    const char* playbackPath = data["playback_url"] | "";
+    const uint32_t assetRevision = data["asset_revision"] | 0;
+    const uint32_t playheadMs = data["playhead_ms"] | 0;
+
+    if (data["frame"].is<JsonObjectConst>()) {
+      gState.hasCustomFrame = decodeRgb565Frame(
+        data["frame"].as<JsonObjectConst>(),
+        gState.customFrame565,
+        gState.customFrameW,
+        gState.customFrameH
+      );
+    } else {
+      gState.hasCustomFrame = false;
+      gState.customFrameW = 0;
+      gState.customFrameH = 0;
+      gState.customFrame565.clear();
+    }
+
+    const bool samePlaybackAsset =
+      gState.hasCustomPlayback &&
+      gState.customPlaybackAssetId == assetId &&
+      gState.customPlaybackAssetRevision == assetRevision &&
+      gState.customPlaybackAssetId.length() > 0;
+
+    if (!samePlaybackAsset) {
+      gState.hasCustomPlayback = false;
+      gState.customPlaybackW = 0;
+      gState.customPlaybackH = 0;
+      gState.customPlayback565.clear();
+      gState.customPlaybackDurationsMs.clear();
+      gState.customPlaybackTotalDurationMs = 0;
+      gState.customPlaybackStartedMs = 0;
+      gState.customPlaybackAssetId = "";
+      gState.customPlaybackAssetKind = "";
+      gState.customPlaybackAssetName = "";
+      gState.customPlaybackAssetRevision = 0;
+
+      if (playbackPath[0] != '\0') {
+        fetchCustomPlaybackPackage(playbackPath, nowMs);
+      }
+    }
+
+    if (gState.hasCustomPlayback) {
+      gState.customPlaybackStartedMs = (nowMs >= playheadMs) ? (nowMs - playheadMs) : 0;
+      gState.customPlaybackAssetId = assetId;
+      gState.customPlaybackAssetKind = assetKind;
+      gState.customPlaybackAssetName = data["asset_name"] | "custom_gif";
+      gState.customPlaybackAssetRevision = assetRevision;
+    }
+    return true;
+  }
+
+  gState.widget = WidgetNone;
+  gState.widgetName = "none";
+  gState.hasCover = false;
+  gState.coverScaled565.clear();
+  gState.hasCustomFrame = false;
+  gState.customFrameW = 0;
+  gState.customFrameH = 0;
+  gState.customFrame565.clear();
+  gState.hasCustomPlayback = false;
+  gState.customPlaybackW = 0;
+  gState.customPlaybackH = 0;
+  gState.customPlayback565.clear();
+  gState.customPlaybackDurationsMs.clear();
+  gState.customPlaybackTotalDurationMs = 0;
+  gState.customPlaybackStartedMs = 0;
+  gState.customPlaybackAssetId = "";
+  gState.customPlaybackAssetKind = "";
+  gState.customPlaybackAssetName = "";
+  gState.customPlaybackAssetRevision = 0;
+  return true;
 }
-
-void loop() {
-  if (!display) {
-    delay(2000);
-    return;
+    sourcePollInterval = gState.hasCustomPlayback
+      ? SOURCE_POLL_INTERVAL_GIF_CACHE_MS
+      : SOURCE_POLL_INTERVAL_GIF_MS;
   }
-
-  if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
-  }
-
-  const uint32_t now = millis();
-  maintainNtpClock(now);
-
-  const uint32_t sourcePollInterval =
-    (gState.widget == WidgetCustomGif) ? SOURCE_POLL_INTERVAL_GIF_MS : SOURCE_POLL_INTERVAL_MS;
 
   if (now - lastSourcePollMs >= sourcePollInterval) {
     lastSourcePollMs = now;
 
     String payload;
-    if (fetchScreenPayload(payload) && updateStateFromPayload(payload)) {
+    if (fetchScreenPayload(payload) && updateStateFromPayload(payload, now)) {
       lastSourceSuccessMs = now;
     }
   }
@@ -212,6 +315,10 @@ void connectWiFi() {
 }
 
 bool fetchScreenPayload(String& payload) {
+  return fetchJsonPayload(API_SCREEN_PATH, payload);
+}
+
+bool fetchJsonPayload(const String& path, String& payload) {
   if (WiFi.status() != WL_CONNECTED) {
     return false;
   }
@@ -219,7 +326,7 @@ bool fetchScreenPayload(String& payload) {
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
 
-  const String url = String("http://") + API_HOST + ":" + String(API_PORT) + API_SCREEN_PATH;
+  const String url = String("http://") + API_HOST + ":" + String(API_PORT) + path;
   if (!http.begin(url)) {
     return false;
   }
@@ -236,7 +343,149 @@ bool fetchScreenPayload(String& payload) {
   return true;
 }
 
-bool updateStateFromPayload(const String& payload) {
+bool fetchCustomPlaybackPackage(const String& playbackPath, uint32_t nowMs) {
+  String payload;
+  if (!fetchJsonPayload(playbackPath, payload)) {
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
+    return false;
+  }
+
+  DynamicJsonDocument doc(JSON_DOC_CAPACITY);
+  const DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Serial.printf("Playback JSON invalido: %s\n", err.c_str());
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
+    return false;
+  }
+
+  const JsonObjectConst data = doc["data"].as<JsonObjectConst>();
+  const JsonArrayConst frames = data["frames"].as<JsonArrayConst>();
+  if (frames.isNull() || frames.size() == 0) {
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
+    return false;
+  }
+
+  std::vector<uint16_t> playbackFrames565;
+  std::vector<uint32_t> durationsMs;
+  uint16_t frameW = 0;
+  uint16_t frameH = 0;
+  uint32_t totalDurationMs = 0;
+
+  for (JsonVariantConst frameVariant : frames) {
+    if (!frameVariant.is<JsonObjectConst>()) {
+      continue;
+    }
+
+    const JsonObjectConst frameItem = frameVariant.as<JsonObjectConst>();
+    const JsonObjectConst frameData = frameItem["frame"].as<JsonObjectConst>();
+    if (!frameData.isNull()) {
+      std::vector<uint16_t> framePixels;
+      uint16_t decodedW = 0;
+      uint16_t decodedH = 0;
+      if (!decodeRgb565Frame(frameData, framePixels, decodedW, decodedH)) {
+        gState.hasCustomPlayback = false;
+        gState.customPlaybackW = 0;
+        gState.customPlaybackH = 0;
+        gState.customPlayback565.clear();
+        gState.customPlaybackDurationsMs.clear();
+        gState.customPlaybackTotalDurationMs = 0;
+        gState.customPlaybackStartedMs = 0;
+        gState.customPlaybackAssetId = "";
+        gState.customPlaybackAssetKind = "";
+        gState.customPlaybackAssetName = "";
+        gState.customPlaybackAssetRevision = 0;
+        return false;
+      }
+
+      if (frameW == 0 && frameH == 0) {
+        frameW = decodedW;
+        frameH = decodedH;
+      } else if (frameW != decodedW || frameH != decodedH) {
+        gState.hasCustomPlayback = false;
+        gState.customPlaybackW = 0;
+        gState.customPlaybackH = 0;
+        gState.customPlayback565.clear();
+        gState.customPlaybackDurationsMs.clear();
+        gState.customPlaybackTotalDurationMs = 0;
+        gState.customPlaybackStartedMs = 0;
+        gState.customPlaybackAssetId = "";
+        gState.customPlaybackAssetKind = "";
+        gState.customPlaybackAssetName = "";
+        gState.customPlaybackAssetRevision = 0;
+        return false;
+      }
+
+      const uint32_t durationMs = frameItem["duration_ms"] | 100;
+      durationsMs.push_back(durationMs > 0 ? durationMs : 100);
+      totalDurationMs += durationsMs.back();
+      playbackFrames565.insert(playbackFrames565.end(), framePixels.begin(), framePixels.end());
+    }
+  }
+
+  if (playbackFrames565.empty() || frameW == 0 || frameH == 0 || durationsMs.empty()) {
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
+    return false;
+  }
+
+  gState.hasCustomPlayback = true;
+  gState.customPlaybackW = frameW;
+  gState.customPlaybackH = frameH;
+  gState.customPlayback565 = std::move(playbackFrames565);
+  gState.customPlaybackDurationsMs = std::move(durationsMs);
+  gState.customPlaybackTotalDurationMs = totalDurationMs;
+  gState.customPlaybackStartedMs = nowMs;
+  gState.customPlaybackAssetId = data["asset_id"] | "";
+  gState.customPlaybackAssetKind = data["asset_kind"] | "custom";
+  gState.customPlaybackAssetName = data["asset_name"] | "custom_gif";
+  gState.customPlaybackAssetRevision = data["asset_revision"] | 0;
+
+  const uint32_t playheadMs = data["playhead_ms"] | 0;
+  gState.customPlaybackStartedMs = (nowMs >= playheadMs) ? (nowMs - playheadMs) : 0;
+
+  return true;
+}
+
+bool updateStateFromPayload(const String& payload, uint32_t nowMs) {
   DynamicJsonDocument doc(JSON_DOC_CAPACITY);
   const DeserializationError err = deserializeJson(doc, payload);
   if (err) {
@@ -267,6 +516,17 @@ bool updateStateFromPayload(const String& payload) {
     gState.customFrameW = 0;
     gState.customFrameH = 0;
     gState.customFrame565.clear();
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
     return true;
   }
 
@@ -282,18 +542,35 @@ bool updateStateFromPayload(const String& payload) {
     gState.customFrameW = 0;
     gState.customFrameH = 0;
     gState.customFrame565.clear();
+    gState.hasCustomPlayback = false;
+    gState.customPlaybackW = 0;
+    gState.customPlaybackH = 0;
+    gState.customPlayback565.clear();
+    gState.customPlaybackDurationsMs.clear();
+    gState.customPlaybackTotalDurationMs = 0;
+    gState.customPlaybackStartedMs = 0;
+    gState.customPlaybackAssetId = "";
+    gState.customPlaybackAssetKind = "";
+    gState.customPlaybackAssetName = "";
+    gState.customPlaybackAssetRevision = 0;
     return true;
   }
 
   if (strcmp(widget, "custom_gif") == 0) {
     gState.widget = WidgetCustomGif;
-    gState.title = data["name"] | "custom_gif";
+    gState.title = data["asset_name"] | data["name"] | "custom_gif";
     gState.author = "-";
     gState.progressMs = 0;
     gState.durationMs = 0;
 
     gState.hasCover = false;
     gState.coverScaled565.clear();
+
+    const char* assetId = data["asset_id"] | "";
+    const char* assetKind = data["asset_kind"] | "custom";
+    const char* playbackUrl = data["playback_url"] | "";
+    const uint32_t assetRevision = data["asset_revision"] | 0;
+    const uint32_t playheadMs = data["playhead_ms"] | 0;
 
     if (data["frame"].is<JsonObjectConst>()) {
       gState.hasCustomFrame = decodeRgb565Frame(
@@ -308,6 +585,38 @@ bool updateStateFromPayload(const String& payload) {
       gState.customFrameH = 0;
       gState.customFrame565.clear();
     }
+
+    const bool samePlaybackAsset =
+      gState.hasCustomPlayback &&
+      gState.customPlaybackAssetId == assetId &&
+      gState.customPlaybackAssetRevision == assetRevision &&
+      gState.customPlaybackAssetId.length() > 0;
+
+    if (!samePlaybackAsset) {
+      gState.hasCustomPlayback = false;
+      gState.customPlaybackW = 0;
+      gState.customPlaybackH = 0;
+      gState.customPlayback565.clear();
+      gState.customPlaybackDurationsMs.clear();
+      gState.customPlaybackTotalDurationMs = 0;
+      gState.customPlaybackStartedMs = 0;
+      gState.customPlaybackAssetId = "";
+      gState.customPlaybackAssetKind = "";
+      gState.customPlaybackAssetName = "";
+      gState.customPlaybackAssetRevision = 0;
+
+      if (playbackUrl[0] != '\0') {
+        fetchCustomPlaybackPackage(playbackUrl, nowMs);
+      }
+    }
+
+    if (gState.hasCustomPlayback) {
+      gState.customPlaybackStartedMs = (nowMs >= playheadMs) ? (nowMs - playheadMs) : 0;
+      gState.customPlaybackAssetId = assetId;
+      gState.customPlaybackAssetKind = assetKind;
+      gState.customPlaybackAssetName = data["asset_name"] | "custom_gif";
+      gState.customPlaybackAssetRevision = assetRevision;
+    }
     return true;
   }
 
@@ -319,6 +628,17 @@ bool updateStateFromPayload(const String& payload) {
   gState.customFrameW = 0;
   gState.customFrameH = 0;
   gState.customFrame565.clear();
+  gState.hasCustomPlayback = false;
+  gState.customPlaybackW = 0;
+  gState.customPlaybackH = 0;
+  gState.customPlayback565.clear();
+  gState.customPlaybackDurationsMs.clear();
+  gState.customPlaybackTotalDurationMs = 0;
+  gState.customPlaybackStartedMs = 0;
+  gState.customPlaybackAssetId = "";
+  gState.customPlaybackAssetKind = "";
+  gState.customPlaybackAssetName = "";
+  gState.customPlaybackAssetRevision = 0;
   return true;
 }
 
@@ -346,7 +666,7 @@ void renderCurrentFrame(uint32_t nowMs) {
   }
 
   if (gState.widget == WidgetCustomGif) {
-    renderCustomGifFrame();
+    renderCustomGifFrame(nowMs);
     return;
   }
 
@@ -367,9 +687,41 @@ void renderClockFrame() {
   display->print(gState.dateText);
 }
 
-void renderCustomGifFrame() {
+void renderCustomGifFrame(uint32_t nowMs) {
   if (!display) {
     return;
+  }
+
+  if (gState.hasCustomPlayback &&
+      gState.customPlaybackW > 0 &&
+      gState.customPlaybackH > 0 &&
+      !gState.customPlayback565.empty() &&
+      !gState.customPlaybackDurationsMs.empty()) {
+    const size_t framePixels = static_cast<size_t>(gState.customPlaybackW) * gState.customPlaybackH;
+    if (framePixels == 0 || gState.customPlayback565.size() < framePixels) {
+      gState.hasCustomPlayback = false;
+    } else {
+      const uint32_t elapsedMs = (nowMs >= gState.customPlaybackStartedMs)
+        ? (nowMs - gState.customPlaybackStartedMs)
+        : 0;
+      const size_t frameIndex = getPlaybackFrameIndex(
+        gState.customPlaybackDurationsMs,
+        elapsedMs,
+        gState.customPlaybackTotalDurationMs
+      );
+      const size_t offset = frameIndex * framePixels;
+      if (offset + framePixels <= gState.customPlayback565.size()) {
+        display->clearScreen();
+        drawScaledRgb565Frame(
+          gState.customPlayback565.data() + offset,
+          gState.customPlaybackW,
+          gState.customPlaybackH
+        );
+        return;
+      }
+
+      gState.hasCustomPlayback = false;
+    }
   }
 
   if (!gState.hasCustomFrame || gState.customFrameW == 0 || gState.customFrameH == 0) {
@@ -384,25 +736,7 @@ void renderCustomGifFrame() {
   }
 
   display->clearScreen();
-
-  for (uint16_t y = 0; y < PANEL_HEIGHT; y++) {
-    const uint16_t srcY = static_cast<uint16_t>(
-      (static_cast<uint32_t>(y) * gState.customFrameH) / PANEL_HEIGHT
-    );
-
-    for (uint16_t x = 0; x < PANEL_WIDTH; x++) {
-      const uint16_t srcX = static_cast<uint16_t>(
-        (static_cast<uint32_t>(x) * gState.customFrameW) / PANEL_WIDTH
-      );
-
-      const size_t srcIndex = static_cast<size_t>(srcY) * gState.customFrameW + srcX;
-      if (srcIndex >= gState.customFrame565.size()) {
-        continue;
-      }
-
-      display->drawPixel(x, y, gState.customFrame565[srcIndex]);
-    }
-  }
+  drawScaledRgb565Frame(gState.customFrame565.data(), gState.customFrameW, gState.customFrameH);
 }
 
 void maintainNtpClock(uint32_t nowMs) {
@@ -634,6 +968,69 @@ bool decodeRgb565Frame(
   outW = w;
   outH = h;
   return true;
+}
+
+void drawScaledRgb565Frame(
+  const uint16_t* frameData,
+  uint16_t frameW,
+  uint16_t frameH
+) {
+  if (!display || !frameData || frameW == 0 || frameH == 0) {
+    return;
+  }
+
+  for (uint16_t y = 0; y < PANEL_HEIGHT; y++) {
+    const uint16_t srcY = static_cast<uint16_t>(
+      (static_cast<uint32_t>(y) * frameH) / PANEL_HEIGHT
+    );
+
+    for (uint16_t x = 0; x < PANEL_WIDTH; x++) {
+      const uint16_t srcX = static_cast<uint16_t>(
+        (static_cast<uint32_t>(x) * frameW) / PANEL_WIDTH
+      );
+
+      const size_t srcIndex = static_cast<size_t>(srcY) * frameW + srcX;
+      display->drawPixel(x, y, frameData[srcIndex]);
+    }
+  }
+}
+
+size_t getPlaybackFrameIndex(
+  const std::vector<uint32_t>& durationsMs,
+  uint32_t playheadMs,
+  uint32_t totalDurationMs
+) {
+  if (durationsMs.empty()) {
+    return 0;
+  }
+
+  if (durationsMs.size() == 1) {
+    return 0;
+  }
+
+  uint32_t safeTotal = totalDurationMs;
+  if (safeTotal == 0) {
+    safeTotal = 0;
+    for (uint32_t duration : durationsMs) {
+      safeTotal += (duration == 0) ? 100 : duration;
+    }
+  }
+
+  if (safeTotal == 0) {
+    return 0;
+  }
+
+  const uint32_t phase = playheadMs % safeTotal;
+  uint32_t accumulated = 0;
+  for (size_t index = 0; index < durationsMs.size(); index++) {
+    const uint32_t duration = durationsMs[index] == 0 ? 100 : durationsMs[index];
+    accumulated += duration;
+    if (phase < accumulated) {
+      return index;
+    }
+  }
+
+  return durationsMs.size() - 1;
 }
 
 void drawCoverScaled(int16_t x0, int16_t y0) {

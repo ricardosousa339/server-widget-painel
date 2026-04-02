@@ -104,6 +104,7 @@ curl "http://127.0.0.1:8000/screen?img_mode=rgb565_base64"
 
 ## 8) Observacoes importantes
 
-1. O alerta de campainha precisa de um GIF previamente salvo no widget `custom_gif`.
+1. O alerta de campainha usa o GIF separado da campainha (`kind=doorbell`).
+   - Se esse asset nao existir, o backend ainda pode cair para um GIF custom ativo como fallback.
 2. O trigger de campainha nao altera `widget_config.json`; ele aplica prioridade temporaria em memoria.
 3. O endpoint usado pelo Home Assistant no container e `host.docker.internal:8000`.

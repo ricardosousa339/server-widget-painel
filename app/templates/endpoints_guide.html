@@ -120,6 +120,11 @@
       color: #1b1206;
     }
 
+    .patch {
+      background: #6ea8fe;
+      color: #04101f;
+    }
+
     .delete {
       background: var(--danger);
       color: #220909;
@@ -231,7 +236,7 @@
           <span class="path">/screen?img_mode=rgb565_base64</span>
         </header>
         <div class="card-body">
-          <p class="desc">Payload ativo escolhido pelo gerenciador de widgets (spotify, custom_gif, clock).</p>
+          <p class="desc">Payload ativo escolhido pelo gerenciador de widgets (spotify, custom_gif, clock) e sobrescrito pela janela temporaria da campainha quando ela estiver ativa.</p>
           <p class="hint">img_mode: rgb565_base64 (padrao), rgb_base64, rgb_array</p>
           <pre>curl "http://127.0.0.1:8000/screen?img_mode=rgb565_base64"</pre>
         </div>
@@ -266,7 +271,7 @@ http://127.0.0.1:8000/preview/frame</pre>
           <span class="path">/config/widgets e /widgets/config</span>
         </header>
         <div class="card-body">
-          <p class="desc">Tela amigavel para escolher widgets ativos, enviar GIF customizado e endpoint JSON para leitura da configuracao.</p>
+          <p class="desc">Tela amigavel para escolher widgets ativos, gerenciar a biblioteca de GIFs custom e configurar o GIF separado da campainha.</p>
           <pre>http://127.0.0.1:8000/config/widgets
 curl http://127.0.0.1:8000/widgets/config</pre>
         </div>
@@ -288,12 +293,13 @@ curl http://127.0.0.1:8000/widgets/config</pre>
       <article class="card">
         <header class="card-head">
           <span class="method get">GET</span>
-          <span class="path">/widgets/custom-gif e /widgets/custom-gif/raw</span>
+          <span class="path">/widgets/custom-gif, /widgets/custom-gif/raw e /widgets/custom-gif/playback</span>
         </header>
         <div class="card-body">
-          <p class="desc">Consulta estado atual do widget custom_gif e baixa o GIF bruto salvo.</p>
+          <p class="desc">Consulta a biblioteca atual, baixa o GIF bruto do asset selecionado e recupera o pacote de playback pronto para o ESP32.</p>
           <pre>curl http://127.0.0.1:8000/widgets/custom-gif
-curl -OJ http://127.0.0.1:8000/widgets/custom-gif/raw</pre>
+curl -OJ "http://127.0.0.1:8000/widgets/custom-gif/raw?kind=custom"
+curl -OJ "http://127.0.0.1:8000/widgets/custom-gif/playback?kind=custom"</pre>
         </div>
       </article>
 
@@ -303,9 +309,24 @@ curl -OJ http://127.0.0.1:8000/widgets/custom-gif/raw</pre>
           <span class="path">/widgets/custom-gif/upload</span>
         </header>
         <div class="card-body">
-          <p class="desc">Faz upload de um arquivo GIF e atualiza o estado do widget custom_gif.</p>
+          <p class="desc">Faz upload de um GIF para a biblioteca custom ou para o GIF da campainha. Aceita `kind` e `active` no form multipart.</p>
           <pre>curl -X POST "http://127.0.0.1:8000/widgets/custom-gif/upload" \
-  -F "file=@/caminho/animacao.gif"</pre>
+  -F "file=@/caminho/animacao.gif" \
+  -F "kind=custom" \
+  -F "active=true"</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method patch">PATCH</span>
+          <span class="path">/widgets/custom-gif/{asset_id}</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Ativa ou desativa um asset existente sem reenviar o arquivo.</p>
+          <pre>curl -X PATCH "http://127.0.0.1:8000/widgets/custom-gif/ASSET_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"active":false}'</pre>
         </div>
       </article>
 
@@ -315,8 +336,9 @@ curl -OJ http://127.0.0.1:8000/widgets/custom-gif/raw</pre>
           <span class="path">/widgets/custom-gif</span>
         </header>
         <div class="card-body">
-          <p class="desc">Remove o GIF personalizado salvo e limpa o estado do widget custom_gif.</p>
-          <pre>curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif"</pre>
+          <p class="desc">Remove um asset especifico ou limpa a biblioteca inteira do kind indicado.</p>
+          <pre>curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif/ASSET_ID"
+curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif?kind=custom"</pre>
         </div>
       </article>
 
@@ -337,7 +359,7 @@ curl -OJ http://127.0.0.1:8000/widgets/custom-gif/raw</pre>
           <span class="path">/integrations/doorbell/trigger</span>
         </header>
         <div class="card-body">
-          <p class="desc">Dispara alerta de campainha e prioriza custom_gif por alguns segundos.</p>
+          <p class="desc">Dispara alerta de campainha e prioriza o GIF separado da campainha por alguns segundos.</p>
           <pre>curl -X POST "http://127.0.0.1:8000/integrations/doorbell/trigger" \
   -H "Content-Type: application/json" \
   -d '{"duration_seconds":8,"source":"home_assistant"}'</pre>

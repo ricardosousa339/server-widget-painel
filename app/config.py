@@ -24,7 +24,7 @@ class Settings:
 
     widget_config_path: Path = Path(os.getenv("WIDGET_CONFIG_PATH", "data/widget_config.json"))
     custom_gif_state_path: Path = Path(
-        os.getenv("CUSTOM_GIF_STATE_PATH", "data/custom_gif_state.json")
+        os.getenv("CUSTOM_GIF_STATE_PATH", "data/custom_gifs_state.json")
     )
     custom_gif_upload_dir: Path = Path(
         os.getenv("CUSTOM_GIF_UPLOAD_DIR", "data/uploads")
