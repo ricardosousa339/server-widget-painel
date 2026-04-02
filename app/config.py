@@ -32,6 +32,12 @@ class Settings:
     custom_gif_max_upload_bytes: int = int(
         os.getenv("CUSTOM_GIF_MAX_UPLOAD_BYTES", str(8 * 1024 * 1024))
     )
+    doorbell_alert_default_seconds: int = int(
+        os.getenv("DOORBELL_ALERT_DEFAULT_SECONDS", "8")
+    )
+    doorbell_alert_max_seconds: int = int(
+        os.getenv("DOORBELL_ALERT_MAX_SECONDS", "60")
+    )
 
 
 def get_settings() -> Settings:

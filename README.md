@@ -50,6 +50,8 @@ Edite `.env`:
 - `CUSTOM_GIF_STATE_PATH=data/custom_gif_state.json`
 - `CUSTOM_GIF_UPLOAD_DIR=data/uploads`
 - `CUSTOM_GIF_MAX_UPLOAD_BYTES=8388608`
+- `DOORBELL_ALERT_DEFAULT_SECONDS=8`
+- `DOORBELL_ALERT_MAX_SECONDS=60`
 
 ## Gerar tokens do Spotify (access + refresh)
 
@@ -236,6 +238,50 @@ Observacoes:
 - Em queda de processo, a tarefa por minuto religa automaticamente.
 - Em notebooks, para manter 24x7, deixe ligado na tomada e com as configuracoes de energia acima.
 
+## Home Assistant no Windows (WSL + Docker)
+
+Para integrar sua campainha Smart Life com o painel, voce pode rodar o Home Assistant no mesmo host da API,
+com o mesmo modelo de servico continuo no logon.
+
+Arquivos de suporte adicionados:
+
+- `scripts/ensure_home_assistant.sh`
+- `run_home_assistant_wsl_windows.bat`
+- `setup_windows_wsl_home_assistant_service.bat`
+- `remove_windows_wsl_home_assistant_service.bat`
+- `examples/home_assistant/README.md`
+- `examples/home_assistant/doorbell_bridge_package.yaml`
+
+Passo a passo rapido:
+
+1. Instale e inicie o Docker Desktop no Windows (com integracao WSL habilitada).
+2. No Windows, na raiz do projeto, rode:
+
+```bat
+run_home_assistant_wsl_windows.bat
+```
+
+3. Abra `http://127.0.0.1:8123` e conclua o onboarding do Home Assistant.
+4. Para manter 24x7 e reiniciar no logon (igual a API), execute como Administrador:
+
+```bat
+setup_windows_wsl_home_assistant_service.bat
+```
+
+Isso cria:
+
+1. `ServerWidgetHA-OnLogon`
+2. `ServerWidgetHA-Watchdog` (a cada minuto)
+3. `portproxy` da porta 8123 e regra de firewall
+
+Remocao completa:
+
+```bat
+remove_windows_wsl_home_assistant_service.bat
+```
+
+Depois, siga o guia de automacao em `examples/home_assistant/README.md`.
+
 ## Abrir firewall no Windows
 
 ### CMD (Administrador)
@@ -382,6 +428,46 @@ Persistencia do custom_gif:
 - Metadados do widget: `CUSTOM_GIF_STATE_PATH`.
 - Arquivo GIF bruto salvo em: `CUSTOM_GIF_UPLOAD_DIR/custom.gif`.
 - Limite de upload em bytes: `CUSTOM_GIF_MAX_UPLOAD_BYTES`.
+
+## Integracao Home Assistant (campainha Smart Life)
+
+Foi adicionada uma ponte REST para automacao de campainha via Home Assistant:
+
+- Estado: `GET /integrations/doorbell/state`
+- Acionar alerta: `POST /integrations/doorbell/trigger`
+- Limpar alerta: `DELETE /integrations/doorbell/state`
+
+Comportamento do trigger:
+
+- Ativa uma janela temporaria de alerta (`TTL`) em memoria.
+- Durante essa janela, o backend tenta priorizar `custom_gif` no `/screen`.
+- Nao altera `display_mode` nem sobrescreve `enabled_widgets` em `widget_config.json`.
+
+Observacao importante:
+
+- Para aparecer no painel, e necessario ter um GIF previamente salvo no `custom_gif`.
+
+Exemplo de trigger (8 segundos por padrao):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/integrations/doorbell/trigger" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"home_assistant"}'
+```
+
+Exemplo de trigger customizado:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/integrations/doorbell/trigger" \
+  -H "Content-Type: application/json" \
+  -d '{"duration_seconds":12,"source":"smart_life"}'
+```
+
+Exemplo de leitura de estado:
+
+```bash
+curl "http://127.0.0.1:8000/integrations/doorbell/state"
+```
 
 ## Observacoes para ESP32
 

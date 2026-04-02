@@ -15,7 +15,7 @@ from app.dependencies import (
     load_widgets_config_template,
     widget_manager,
 )
-from app.schemas import WidgetConfigUpdate
+from app.schemas import DoorbellTriggerRequest, WidgetConfigUpdate
 from app.services.image_service import ImageMode
 from app.widgets.custom_gif_widget import CustomGifWidgetError
 
@@ -39,6 +39,8 @@ def root() -> dict[str, Any]:
         "widgets_config_api": "/widgets/config",
         "custom_gif_api": "/widgets/custom-gif",
         "custom_gif_upload": "/widgets/custom-gif/upload",
+        "doorbell_trigger_api": "/integrations/doorbell/trigger",
+        "doorbell_state_api": "/integrations/doorbell/state",
         "health": "/health",
         "screen": "/screen",
         "screen_frame": "/screen/frame",
@@ -122,6 +124,27 @@ async def upload_custom_gif(file: UploadFile = File(...)) -> dict[str, Any]:
 @router.delete("/widgets/custom-gif")
 def delete_custom_gif() -> dict[str, Any]:
     return custom_gif_widget.clear_gif()
+
+
+@router.get("/integrations/doorbell/state")
+def get_doorbell_state() -> dict[str, Any]:
+    return widget_manager.get_doorbell_alert_state()
+
+
+@router.post("/integrations/doorbell/trigger")
+def trigger_doorbell_alert(trigger: DoorbellTriggerRequest | None = None) -> dict[str, Any]:
+    payload = trigger or DoorbellTriggerRequest()
+    state = widget_manager.trigger_doorbell_alert(
+        duration_seconds=payload.normalized_duration_seconds(),
+        source=payload.normalized_source(),
+    )
+    return {"ok": True, "doorbell_alert": state}
+
+
+@router.delete("/integrations/doorbell/state")
+def clear_doorbell_state() -> dict[str, Any]:
+    state = widget_manager.clear_doorbell_alert()
+    return {"ok": True, "doorbell_alert": state}
 
 
 @router.get("/screen/frame")

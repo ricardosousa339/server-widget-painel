@@ -1,0 +1,42 @@
+# Pacote de exemplo para Home Assistant.
+# Ajuste os valores de entity_id e URL conforme seu ambiente.
+
+rest_command:
+  painel_doorbell_trigger:
+    url: "http://host.docker.internal:8000/integrations/doorbell/trigger"
+    method: POST
+    content_type: "application/json"
+    payload: >
+      {"duration_seconds": {{ duration_seconds | default(8) }}, "source": "home_assistant"}
+    timeout: 10
+
+  painel_doorbell_clear:
+    url: "http://host.docker.internal:8000/integrations/doorbell/state"
+    method: DELETE
+    timeout: 10
+
+automation:
+  - id: server_widget_painel_doorbell_bridge
+    alias: Campainha Smart Life -> Painel LED
+    description: Dispara alerta temporario no painel quando a campainha toca.
+    mode: restart
+    trigger:
+      # Exemplo 1: entidade binaria que vai para "on" ao tocar.
+      - platform: state
+        entity_id: binary_sensor.substitua_pela_sua_entidade_da_campainha
+        to: "on"
+
+      # Exemplo 2 (opcional): alguns modelos mudam atributo/evento em sensor.
+      # - platform: state
+      #   entity_id: sensor.substitua_pela_sua_entidade
+      #   to: "ring"
+
+    action:
+      - service: rest_command.painel_doorbell_trigger
+        data:
+          duration_seconds: 8
+
+      # Opcional: limpeza explicita apos o mesmo TTL.
+      # O backend ja expira automaticamente, mas isto garante encerramento.
+      - delay: "00:00:08"
+      - service: rest_command.painel_doorbell_clear

@@ -16,6 +16,8 @@ class WidgetManager:
         primary_widgets: Iterable[BaseWidget],
         fallback_widget: BaseWidget,
         config_store: WidgetConfigStore | None = None,
+        doorbell_alert_default_seconds: int = 8,
+        doorbell_alert_max_seconds: int = 60,
     ) -> None:
         self.primary_widgets = sorted(
             list(primary_widgets),
@@ -28,9 +30,36 @@ class WidgetManager:
         self.primary_widget_by_name = {
             widget.name: widget for widget in self.primary_widgets
         }
+        self.doorbell_alert_default_seconds = max(1, int(doorbell_alert_default_seconds))
+        self.doorbell_alert_max_seconds = max(
+            self.doorbell_alert_default_seconds,
+            int(doorbell_alert_max_seconds),
+        )
+        self._doorbell_alert_until: float = 0.0
+        self._doorbell_last_trigger_at: float = 0.0
+        self._doorbell_last_source: str | None = None
 
     async def get_screen_payload(self, image_mode: ImageMode = "rgb565_base64") -> dict[str, Any]:
         enabled_widgets = self._enabled_widgets()
+
+        doorbell_state = self.get_doorbell_alert_state()
+        if doorbell_state["active"]:
+            custom_payload = await self._payload_for_widget(
+                self.CUSTOM_WIDGET_NAME,
+                enabled_widgets=enabled_widgets,
+                image_mode=image_mode,
+                ignore_enabled=True,
+            )
+            if custom_payload is not None:
+                data = custom_payload.get("data")
+                if isinstance(data, dict):
+                    data["doorbell_alert"] = {
+                        "active": True,
+                        "remaining_seconds": doorbell_state["remaining_seconds"],
+                        "last_source": doorbell_state["last_source"],
+                    }
+                return custom_payload
+
         display_config = self._display_config()
         display_mode = display_config["display_mode"]
 
@@ -127,6 +156,58 @@ class WidgetManager:
             return {widget.name for widget in self.all_widgets}
         return self.config_store.enabled_set()
 
+    def trigger_doorbell_alert(
+        self,
+        *,
+        duration_seconds: int | None = None,
+        source: str | None = None,
+    ) -> dict[str, Any]:
+        now = time.time()
+        duration = self._normalize_doorbell_duration(duration_seconds)
+        self._doorbell_alert_until = max(self._doorbell_alert_until, now + duration)
+        self._doorbell_last_trigger_at = now
+        self._doorbell_last_source = source
+        return self.get_doorbell_alert_state()
+
+    def clear_doorbell_alert(self) -> dict[str, Any]:
+        self._doorbell_alert_until = 0.0
+        return self.get_doorbell_alert_state()
+
+    def get_doorbell_alert_state(self) -> dict[str, Any]:
+        now = time.time()
+        remaining_seconds = max(0, int((self._doorbell_alert_until - now) + 0.999))
+        active = remaining_seconds > 0
+        if not active:
+            self._doorbell_alert_until = 0.0
+
+        last_trigger_ts: int | None = None
+        if self._doorbell_last_trigger_at > 0:
+            last_trigger_ts = int(self._doorbell_last_trigger_at)
+
+        return {
+            "active": active,
+            "remaining_seconds": remaining_seconds,
+            "default_seconds": self.doorbell_alert_default_seconds,
+            "max_seconds": self.doorbell_alert_max_seconds,
+            "last_trigger_ts": last_trigger_ts,
+            "last_source": self._doorbell_last_source,
+        }
+
+    def _normalize_doorbell_duration(self, duration_seconds: int | None) -> int:
+        if duration_seconds is None:
+            return self.doorbell_alert_default_seconds
+
+        try:
+            duration = int(duration_seconds)
+        except (TypeError, ValueError):
+            duration = self.doorbell_alert_default_seconds
+
+        if duration < 1:
+            return 1
+        if duration > self.doorbell_alert_max_seconds:
+            return self.doorbell_alert_max_seconds
+        return duration
+
     async def _payload_by_priority(
         self,
         enabled_widgets: set[str],
@@ -165,11 +246,12 @@ class WidgetManager:
         *,
         enabled_widgets: set[str],
         image_mode: ImageMode,
+        ignore_enabled: bool = False,
     ) -> dict[str, Any] | None:
         widget = self.primary_widget_by_name.get(widget_name)
         if widget is None:
             return None
-        if widget_name not in enabled_widgets:
+        if not ignore_enabled and widget_name not in enabled_widgets:
             return None
         return await widget.get_data(image_mode=image_mode)
 

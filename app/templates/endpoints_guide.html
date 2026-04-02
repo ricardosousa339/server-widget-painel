@@ -319,6 +319,41 @@ curl -OJ http://127.0.0.1:8000/widgets/custom-gif/raw</pre>
           <pre>curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif"</pre>
         </div>
       </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/integrations/doorbell/state</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Estado atual da janela de alerta temporaria da campainha (TTL).</p>
+          <pre>curl http://127.0.0.1:8000/integrations/doorbell/state</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method post">POST</span>
+          <span class="path">/integrations/doorbell/trigger</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Dispara alerta de campainha e prioriza custom_gif por alguns segundos.</p>
+          <pre>curl -X POST "http://127.0.0.1:8000/integrations/doorbell/trigger" \
+  -H "Content-Type: application/json" \
+  -d '{"duration_seconds":8,"source":"home_assistant"}'</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method delete">DEL</span>
+          <span class="path">/integrations/doorbell/state</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Encerra imediatamente a janela de alerta de campainha.</p>
+          <pre>curl -X DELETE "http://127.0.0.1:8000/integrations/doorbell/state"</pre>
+        </div>
+      </article>
     </section>
 
     <p class="footer">Se precisar da documentacao completa com schemas, use <strong>/docs</strong> ou <strong>/redoc</strong>.</p>

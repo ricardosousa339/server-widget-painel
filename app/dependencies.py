@@ -44,6 +44,8 @@ widget_manager = WidgetManager(
     primary_widgets=[spotify_widget, custom_gif_widget],
     fallback_widget=clock_widget,
     config_store=widget_config_store,
+    doorbell_alert_default_seconds=settings.doorbell_alert_default_seconds,
+    doorbell_alert_max_seconds=settings.doorbell_alert_max_seconds,
 )
 frame_renderer = FrameRenderer(
     width=64,
