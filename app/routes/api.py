@@ -9,11 +9,13 @@ from app.dependencies import (
     book_widget,
     frame_source_cache,
     frame_renderer,
+    load_endpoints_guide_template,
     load_frame_preview_template,
     load_preview_template,
+    load_widgets_config_template,
     widget_manager,
 )
-from app.schemas import BookStateUpdate
+from app.schemas import BookStateUpdate, WidgetConfigUpdate
 from app.services.image_service import ImageMode
 
 router = APIRouter()
@@ -31,6 +33,9 @@ def root() -> dict[str, Any]:
         "service": "LED Panel Backend",
         "version": "1.0.0",
         "docs": "/docs",
+        "friendly_docs": "/endpoints",
+        "widgets_config_ui": "/config/widgets",
+        "widgets_config_api": "/widgets/config",
         "health": "/health",
         "screen": "/screen",
         "screen_frame": "/screen/frame",
@@ -42,6 +47,16 @@ def root() -> dict[str, Any]:
 @router.get("/preview/painel", response_class=HTMLResponse)
 def preview_painel() -> HTMLResponse:
     return HTMLResponse(content=load_preview_template())
+
+
+@router.get("/endpoints", response_class=HTMLResponse)
+def endpoints_guide() -> HTMLResponse:
+    return HTMLResponse(content=load_endpoints_guide_template())
+
+
+@router.get("/config/widgets", response_class=HTMLResponse)
+def widgets_config_page() -> HTMLResponse:
+    return HTMLResponse(content=load_widgets_config_template())
 
 
 @router.get("/preview/frame", response_class=HTMLResponse)
@@ -57,6 +72,16 @@ async def screen(
     ),
 ) -> dict[str, Any]:
     return await widget_manager.get_screen_payload(image_mode=img_mode)
+
+
+@router.get("/widgets/config")
+def get_widgets_config() -> dict[str, Any]:
+    return widget_manager.get_widgets_config()
+
+
+@router.post("/widgets/config")
+def update_widgets_config(update: WidgetConfigUpdate) -> dict[str, Any]:
+    return widget_manager.update_enabled_widgets(update.normalized_enabled_widgets())
 
 
 @router.get("/screen/frame")

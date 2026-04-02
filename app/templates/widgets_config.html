@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuracao de Widgets</title>
+  <style>
+    :root {
+      --bg: #0a0f13;
+      --surface: #101923;
+      --surface-2: #172534;
+      --text: #eff5ff;
+      --muted: #9fb1c8;
+      --line: #2a3a4d;
+      --accent: #59d5a8;
+      --accent-2: #f9b56b;
+      --ok: #38d39f;
+      --err: #ff6a6a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Verdana", sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(89, 213, 168, 0.15), transparent 34%),
+        radial-gradient(circle at 90% 10%, rgba(249, 181, 107, 0.11), transparent 35%),
+        linear-gradient(165deg, #070c11, #0a1118 48%, #0d1722);
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      border: 1px solid rgba(89, 213, 168, 0.35);
+      border-radius: 16px;
+      padding: 18px;
+      background: linear-gradient(120deg, rgba(89, 213, 168, 0.14), rgba(89, 213, 168, 0.03));
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.7rem;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 14px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 12px;
+      background: var(--surface-2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.92rem;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #072018;
+      border-color: transparent;
+      font-weight: 700;
+    }
+
+    button:hover { filter: brightness(1.08); }
+
+    .widgets {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent), var(--surface);
+      padding: 12px;
+    }
+
+    .card label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .meta {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 1.4rem;
+      font-size: 0.9rem;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+
+    .footer {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .links {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .links a {
+      text-decoration: none;
+      color: var(--accent-2);
+      border: 1px solid rgba(249, 181, 107, 0.35);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.86rem;
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 14px; }
+      h1 { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <h1>Configuracao de Widgets Ativos</h1>
+      <p>Escolha quais widgets podem aparecer no painel. A selecao e salva no backend e continua valendo apos reinicio.</p>
+      <div class="links">
+        <a href="/endpoints">Guia de endpoints</a>
+        <a href="/docs">OpenAPI docs</a>
+        <a href="/preview/painel">Preview painel</a>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <button id="enableAllBtn">Ativar todos</button>
+      <button id="disableAllBtn">Desativar todos</button>
+      <button id="reloadBtn">Recarregar</button>
+      <button id="saveBtn" class="primary">Salvar configuracao</button>
+    </section>
+
+    <section id="widgetsList" class="widgets"></section>
+    <div id="status" class="status"></div>
+    <div id="meta" class="footer"></div>
+  </main>
+
+  <script>
+    const widgetsList = document.getElementById("widgetsList");
+    const statusEl = document.getElementById("status");
+    const metaEl = document.getElementById("meta");
+
+    function setStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = "status" + (type ? " " + type : "");
+    }
+
+    function formatDateTime(ts) {
+      if (!ts) return "-";
+      const date = new Date(ts * 1000);
+      if (Number.isNaN(date.getTime())) return "-";
+      return date.toLocaleString();
+    }
+
+    function renderWidgets(config) {
+      widgetsList.innerHTML = "";
+      const widgets = Array.isArray(config.widgets) ? config.widgets : [];
+
+      for (const widget of widgets) {
+        const card = document.createElement("article");
+        card.className = "card";
+
+        const label = document.createElement("label");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = widget.name;
+        checkbox.checked = Boolean(widget.enabled);
+        checkbox.className = "widget-toggle";
+
+        const title = document.createElement("span");
+        title.textContent = widget.name;
+
+        label.appendChild(checkbox);
+        label.appendChild(title);
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = "prioridade: " + widget.priority + " | papel: " + widget.role;
+
+        card.appendChild(label);
+        card.appendChild(meta);
+        widgetsList.appendChild(card);
+      }
+
+      metaEl.textContent = "Ultima atualizacao da configuracao: " + formatDateTime(config.updated_at);
+    }
+
+    function collectEnabledWidgets() {
+      return Array.from(document.querySelectorAll(".widget-toggle"))
+        .filter((el) => el.checked)
+        .map((el) => el.value);
+    }
+
+    function setAllCheckboxes(checked) {
+      const toggles = document.querySelectorAll(".widget-toggle");
+      for (const toggle of toggles) {
+        toggle.checked = checked;
+      }
+    }
+
+    async function loadConfig() {
+      setStatus("Carregando configuracao...", "");
+      try {
+        const response = await fetch("/widgets/config");
+        if (!response.ok) {
+          throw new Error("Falha ao carregar configuracao");
+        }
+        const config = await response.json();
+        renderWidgets(config);
+        setStatus("Configuracao carregada.", "ok");
+      } catch (error) {
+        setStatus("Erro ao carregar: " + error.message, "err");
+      }
+    }
+
+    async function saveConfig() {
+      const enabledWidgets = collectEnabledWidgets();
+      setStatus("Salvando configuracao...", "");
+      try {
+        const response = await fetch("/widgets/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled_widgets: enabledWidgets }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Falha ao salvar configuracao");
+        }
+
+        const config = await response.json();
+        renderWidgets(config);
+        setStatus("Configuracao salva com sucesso.", "ok");
+      } catch (error) {
+        setStatus("Erro ao salvar: " + error.message, "err");
+      }
+    }
+
+    document.getElementById("enableAllBtn").addEventListener("click", () => {
+      setAllCheckboxes(true);
+      setStatus("Todos marcados. Clique em salvar para aplicar.", "");
+    });
+
+    document.getElementById("disableAllBtn").addEventListener("click", () => {
+      setAllCheckboxes(false);
+      setStatus("Todos desmarcados. Clique em salvar para aplicar.", "");
+    });
+
+    document.getElementById("reloadBtn").addEventListener("click", loadConfig);
+    document.getElementById("saveBtn").addEventListener("click", saveConfig);
+
+    loadConfig();
+  </script>
+</body>
+</html>

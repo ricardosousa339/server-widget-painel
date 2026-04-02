@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guia de Endpoints - LED Panel Backend</title>
+  <style>
+    :root {
+      --bg: #0e1216;
+      --surface: #131a21;
+      --surface-2: #1a2430;
+      --text: #eef4ff;
+      --muted: #9db0c8;
+      --line: #2a3644;
+      --accent: #3ad1a6;
+      --accent-2: #ffb86b;
+      --get: #39d98a;
+      --post: #f6a65a;
+      --danger: #ff6b6b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Verdana", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(58, 209, 166, 0.12), transparent 35%),
+        radial-gradient(circle at 85% 15%, rgba(255, 184, 107, 0.10), transparent 35%),
+        linear-gradient(160deg, #0b0f13 0%, #0e1216 45%, #101824 100%);
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: linear-gradient(120deg, rgba(58, 209, 166, 0.15), rgba(58, 209, 166, 0.03));
+      border: 1px solid rgba(58, 209, 166, 0.25);
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 18px;
+      backdrop-filter: blur(4px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.7rem;
+      letter-spacing: 0.2px;
+    }
+
+    .muted {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+      border: 1px solid rgba(58, 209, 166, 0.35);
+      background: rgba(58, 209, 166, 0.08);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.92rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent), var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+
+    .method {
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #06130e;
+      min-width: 52px;
+      text-align: center;
+    }
+
+    .get {
+      background: var(--get);
+    }
+
+    .post {
+      background: var(--post);
+      color: #1b1206;
+    }
+
+    .path {
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 0.95rem;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .card-body {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .desc {
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .hint {
+      color: var(--accent-2);
+      margin: 0;
+      font-size: 0.92rem;
+    }
+
+    pre {
+      margin: 0;
+      padding: 10px;
+      border-radius: 10px;
+      background: #0a0f13;
+      border: 1px solid #233142;
+      color: #dbeafe;
+      overflow-x: auto;
+      font-size: 0.86rem;
+      line-height: 1.35;
+      font-family: "Consolas", "Courier New", monospace;
+    }
+
+    .footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-align: center;
+    }
+
+    .warn {
+      color: var(--danger);
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <h1>Guia Amigavel de Endpoints</h1>
+      <p class="muted">Documentacao rapida para uso manual e integracao com ESP32/app. Esta pagina foca nos endpoints mais usados do projeto.</p>
+      <div class="links">
+        <a href="/docs">OpenAPI /docs</a>
+        <a href="/redoc">OpenAPI /redoc</a>
+        <a href="/preview/painel">Preview Painel</a>
+        <a href="/preview/frame">Preview Frame</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/health</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Health check simples para monitoramento.</p>
+          <pre>curl http://127.0.0.1:8000/health</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Resumo do servico e atalhos principais.</p>
+          <pre>curl http://127.0.0.1:8000/</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/screen?img_mode=rgb565_base64</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Payload ativo escolhido pelo gerenciador de widgets (spotify, book, clock).</p>
+          <p class="hint">img_mode: rgb565_base64 (padrao), rgb_base64, rgb_array</p>
+          <pre>curl "http://127.0.0.1:8000/screen?img_mode=rgb565_base64"</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/screen/frame?at_ms=&lt;ms&gt;&amp;refresh_source=false</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Frame 64x32 pronto para renderizacao (RGB565 base64), incluindo metadados de cache/fonte.</p>
+          <pre>curl "http://127.0.0.1:8000/screen/frame?refresh_source=true"</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/book/current</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Estado atual do widget de livro.</p>
+          <pre>curl http://127.0.0.1:8000/book/current</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method post">POST</span>
+          <span class="path">/book/current</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Atualiza estado do livro para forcar exibicao quando desejado.</p>
+          <pre>curl -X POST "http://127.0.0.1:8000/book/current" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "is_reading": true,
+    "title": "Clean Code",
+    "author": "Robert C. Martin",
+    "cover_url": "https://exemplo/capa.jpg"
+  }'</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/preview/painel e /preview/frame</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Paginas de preview visual para validacao sem hardware.</p>
+          <pre>http://127.0.0.1:8000/preview/painel
+http://127.0.0.1:8000/preview/frame</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/config/widgets e /widgets/config</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Tela amigavel para escolher widgets ativos e endpoint JSON para leitura da configuracao.</p>
+          <pre>http://127.0.0.1:8000/config/widgets
+curl http://127.0.0.1:8000/widgets/config</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method post">POST</span>
+          <span class="path">/widgets/config</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Atualiza os widgets habilitados no backend.</p>
+          <pre>curl -X POST "http://127.0.0.1:8000/widgets/config" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled_widgets": ["spotify", "clock"]}'</pre>
+        </div>
+      </article>
+    </section>
+
+    <p class="footer">Se precisar da documentacao completa com schemas, use <strong>/docs</strong> ou <strong>/redoc</strong>.</p>
+  </main>
+</body>
+</html>

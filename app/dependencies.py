@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.services.frame_renderer import FrameRenderer
 from app.services.image_service import ImageProcessor
 from app.services.screen_payload_cache import ScreenPayloadCache
+from app.services.widget_config_store import WidgetConfigStore
 from app.services.widget_manager import WidgetManager
 from app.widgets.book_widget import BookWidget
 from app.widgets.clock_widget import ClockWidget
@@ -17,6 +18,8 @@ ASSETS_DIR = PROJECT_ROOT / "assets"
 TEMPLATES_DIR = PROJECT_ROOT / "app" / "templates"
 PREVIEW_TEMPLATE_PATH = TEMPLATES_DIR / "preview.html"
 FRAME_PREVIEW_TEMPLATE_PATH = TEMPLATES_DIR / "preview_frame.html"
+ENDPOINTS_GUIDE_TEMPLATE_PATH = TEMPLATES_DIR / "endpoints_guide.html"
+WIDGETS_CONFIG_TEMPLATE_PATH = TEMPLATES_DIR / "widgets_config.html"
 
 settings = get_settings()
 image_processor = ImageProcessor(
@@ -30,9 +33,14 @@ book_widget = BookWidget(
     priority=50,
 )
 clock_widget = ClockWidget(priority=0)
+widget_config_store = WidgetConfigStore(
+    state_path=settings.widget_config_path,
+    available_widgets=[spotify_widget.name, book_widget.name, clock_widget.name],
+)
 widget_manager = WidgetManager(
     primary_widgets=[spotify_widget, book_widget],
     fallback_widget=clock_widget,
+    config_store=widget_config_store,
 )
 frame_renderer = FrameRenderer(
     width=64,
@@ -54,3 +62,13 @@ def load_preview_template() -> str:
 @lru_cache(maxsize=1)
 def load_frame_preview_template() -> str:
     return FRAME_PREVIEW_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
+def load_endpoints_guide_template() -> str:
+    return ENDPOINTS_GUIDE_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
+def load_widgets_config_template() -> str:
+    return WIDGETS_CONFIG_TEMPLATE_PATH.read_text(encoding="utf-8")

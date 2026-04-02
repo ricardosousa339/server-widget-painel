@@ -44,6 +44,7 @@ Edite `.env`:
 - `SPOTIFY_REFRESH_TOKEN`
 - `SPOTIFY_ACCESS_TOKEN`
 - `BOOK_STATE_PATH=data/current_book.json`
+- `WIDGET_CONFIG_PATH=data/widget_config.json`
 
 ## Gerar tokens do Spotify (access + refresh)
 
@@ -277,6 +278,27 @@ Exemplo de resposta com Spotify ativo:
   }
 }
 ```
+
+## Configurar widgets ativos
+
+Agora existe uma pagina amigavel para habilitar/desabilitar widgets:
+
+- UI: `/config/widgets`
+- API (ler): `GET /widgets/config`
+- API (salvar): `POST /widgets/config`
+
+Exemplo de update via API:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/widgets/config" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled_widgets": ["spotify", "clock"]}'
+```
+
+Persistencia:
+
+- O estado e salvo em `data/widget_config.json`.
+- Caminho configuravel pela variavel `WIDGET_CONFIG_PATH`.
 
 ## Endpoints auxiliares do livro
 

@@ -23,6 +23,7 @@ class Settings:
     spotify_access_token: str = os.getenv("SPOTIFY_ACCESS_TOKEN", "")
 
     book_state_path: Path = Path(os.getenv("BOOK_STATE_PATH", "data/current_book.json"))
+    widget_config_path: Path = Path(os.getenv("WIDGET_CONFIG_PATH", "data/widget_config.json"))
 
 
 def get_settings() -> Settings:

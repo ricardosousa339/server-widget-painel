@@ -17,7 +17,7 @@ logger = logging.getLogger("server_widget_painel")
 async def lifespan(app: FastAPI):
     logger.info("LED Panel Backend iniciado com sucesso")
     print("[server-widget-painel] API ativa em http://0.0.0.0:8000")
-    print("[server-widget-painel] Endpoints úteis: /health, /screen, /docs")
+    print("[server-widget-painel] Endpoints uteis: /health, /screen, /docs, /endpoints")
     yield
 
 
