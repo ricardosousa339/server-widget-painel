@@ -121,8 +121,9 @@ Esse script:
 2. Cria tarefa no logon (`ServerWidgetPainel-OnLogon`).
 3. Cria watchdog por minuto (`ServerWidgetPainel-Watchdog`).
 4. Detecta o IP atual do WSL e configura `portproxy` (Windows:8000 -> WSL:8000).
-5. Libera a porta 8000 no firewall.
-6. Dispara a inicializacao imediatamente.
+5. Gera um runner oculto para evitar janela de terminal piscando.
+6. Libera a porta 8000 no firewall.
+7. Dispara a inicializacao imediatamente.
 
 Importante: com backend rodando dentro do WSL, agendar em `SYSTEM` no boot pode falhar,
 porque a distro WSL e por usuario. O modo `ONLOGON` do seu usuario e o mais confiavel.
@@ -149,6 +150,16 @@ remove_windows_wsl_service.bat
 ```
 
 Esse remove tambem o `portproxy` da porta 8000.
+
+### Janela do terminal aparecendo e sumindo
+
+Se voce viu uma janela abrindo a cada minuto, era a tarefa watchdog rodando comando direto.
+Rode novamente o setup para trocar para execucao oculta:
+
+```bat
+remove_windows_wsl_service.bat
+setup_windows_wsl_service.bat
+```
 
 ### Se `http://IP_DO_WINDOWS:8000/health` falhar
 

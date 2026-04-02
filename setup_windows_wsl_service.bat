@@ -11,8 +11,10 @@ set "TASK_ONLOGON=ServerWidgetPainel-OnLogon"
 set "TASK_WATCHDOG=ServerWidgetPainel-Watchdog"
 set "TASK_LEGACY_ONSTART=ServerWidgetPainel-OnStart"
 set "FIREWALL_RULE=LED Panel API 8000"
-set "SERVICE_CMD=wsl.exe -d %DISTRO% --cd %WSL_PROJECT_DIR% /bin/bash -lc './scripts/ensure_server.sh'"
 set "WSL_IP="
+set "RUNNER_DIR=%ProgramData%\ServerWidgetPainel"
+set "RUNNER_VBS=%RUNNER_DIR%\run_ensure_hidden.vbs"
+set "SERVICE_CMD="
 
 net session >nul 2>&1
 if not "%errorlevel%"=="0" (
@@ -35,6 +37,22 @@ if "%WSL_IP%"=="" (
 )
 
 echo [INFO] IP WSL detectado: %WSL_IP%
+
+echo [INFO] Gerando runner oculto para evitar janela piscando...
+if not exist "%RUNNER_DIR%" mkdir "%RUNNER_DIR%"
+(
+    echo Option Explicit
+    echo Dim shell, cmd
+    echo Set shell = CreateObject("WScript.Shell")
+    echo cmd = "wsl.exe -d ""%DISTRO%"" --cd ""%WSL_PROJECT_DIR%"" /bin/bash -lc ""./scripts/ensure_server.sh"""
+    echo shell.Run cmd, 0, True
+) > "%RUNNER_VBS%"
+if errorlevel 1 (
+    echo [ERRO] Falha ao gerar runner oculto em %RUNNER_VBS%.
+    exit /b 1
+)
+
+set "SERVICE_CMD=wscript.exe //B //Nologo %RUNNER_VBS%"
 
 echo [INFO] Configurando portproxy (Windows:8000 -> WSL:8000)...
 netsh interface portproxy delete v4tov4 listenaddress=0.0.0.0 listenport=8000 >nul 2>&1
