@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import time
 from typing import Any, Iterable
 
@@ -18,6 +19,7 @@ class WidgetManager:
         config_store: WidgetConfigStore | None = None,
         doorbell_alert_default_seconds: int = 8,
         doorbell_alert_max_seconds: int = 60,
+        spotify_grace_seconds: int = 8,
     ) -> None:
         self.primary_widgets = sorted(
             list(primary_widgets),
@@ -39,9 +41,19 @@ class WidgetManager:
         self._doorbell_last_trigger_at: float = 0.0
         self._doorbell_last_trigger_ms: int = 0
         self._doorbell_last_source: str | None = None
+        self.spotify_grace_seconds = max(0, int(spotify_grace_seconds))
+        self._spotify_last_payload: dict[str, Any] | None = None
+        self._spotify_last_seen_at: float = 0.0
 
     async def get_screen_payload(self, image_mode: ImageMode = "rgb565_base64") -> dict[str, Any]:
         enabled_widgets = self._enabled_widgets()
+
+        spotify_payload = await self._spotify_payload_with_grace(
+            enabled_widgets=enabled_widgets,
+            image_mode=image_mode,
+        )
+        if spotify_payload is not None:
+            return spotify_payload
 
         doorbell_state = self.get_doorbell_alert_state()
         if doorbell_state["active"]:
@@ -265,6 +277,58 @@ class WidgetManager:
         if not ignore_enabled and widget_name not in enabled_widgets:
             return None
         return await widget.get_data(image_mode=image_mode, **kwargs)
+
+    async def _spotify_payload_with_grace(
+        self,
+        *,
+        enabled_widgets: set[str],
+        image_mode: ImageMode,
+    ) -> dict[str, Any] | None:
+        live_payload = await self._payload_for_widget(
+            "spotify",
+            enabled_widgets=enabled_widgets,
+            image_mode=image_mode,
+        )
+        if live_payload is not None:
+            self._remember_spotify_payload(live_payload)
+            return live_payload
+
+        if "spotify" not in enabled_widgets:
+            self._clear_spotify_cache()
+            return None
+
+        return self._cached_spotify_payload()
+
+    def _remember_spotify_payload(self, payload: dict[str, Any]) -> None:
+        self._spotify_last_payload = deepcopy(payload)
+        self._spotify_last_seen_at = time.time()
+
+    def _cached_spotify_payload(self) -> dict[str, Any] | None:
+        if self._spotify_last_payload is None or self._spotify_last_seen_at <= 0:
+            return None
+
+        if self.spotify_grace_seconds <= 0:
+            self._clear_spotify_cache()
+            return None
+
+        age_seconds = time.time() - self._spotify_last_seen_at
+        if age_seconds > float(self.spotify_grace_seconds):
+            self._clear_spotify_cache()
+            return None
+
+        payload = deepcopy(self._spotify_last_payload)
+        payload["ts"] = int(time.time())
+
+        data = payload.get("data")
+        if isinstance(data, dict):
+            data["currently_playing"] = True
+            data["grace_cached"] = True
+
+        return payload
+
+    def _clear_spotify_cache(self) -> None:
+        self._spotify_last_payload = None
+        self._spotify_last_seen_at = 0.0
 
     async def _fallback_payload(
         self,

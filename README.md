@@ -352,6 +352,10 @@ Comportamento de cada modo:
 - `custom_only`: tenta mostrar `custom_gif`; se indisponivel, cai para `spotify/clock` para nao deixar a tela vazia.
 - `hybrid`: a cada `hybrid_period_seconds`, tenta mostrar `custom_gif` por `hybrid_show_seconds`; fora dessa janela, usa `spotify/clock`.
 
+Observacao:
+
+- Se o Spotify estiver tocando, ele tem prioridade absoluta e nenhum GIF ou alerta de campainha interrompe a tela.
+
 Valores padrao:
 
 - `display_mode`: `priority`
@@ -452,7 +456,7 @@ Foi adicionada uma ponte REST para automacao de campainha via Home Assistant:
 Comportamento do trigger:
 
 - Ativa uma janela temporaria de alerta (`TTL`) em memoria.
-- Durante essa janela, o backend tenta priorizar o GIF da campainha (`kind=doorbell`) no `/screen`.
+- Durante essa janela, o backend tenta priorizar o GIF da campainha (`kind=doorbell`) no `/screen`, mas somente quando o Spotify nao estiver tocando.
 - Nao altera `display_mode` nem sobrescreve `enabled_widgets` em `widget_config.json`.
 
 Observacao importante:

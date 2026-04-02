@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Painel de Configuracao de Widgets</title>
   <style>
+    html {
+      scroll-behavior: smooth;
+    }
+
     :root {
       --bg: #0b1015;
       --surface: #111a24;
@@ -37,7 +41,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1280px;
       margin: 0 auto;
       display: grid;
       gap: 14px;
@@ -79,10 +83,262 @@
       background: rgba(112, 182, 255, 0.09);
     }
 
-    .grid {
+    .settings-shell {
       display: grid;
       gap: 14px;
-      grid-template-columns: 1.1fr 1fr;
+      grid-template-columns: minmax(250px, 290px) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .settings-sidebar {
+      position: sticky;
+      top: 14px;
+      display: grid;
+      gap: 12px;
+      align-self: start;
+    }
+
+    .sidebar-panel {
+      border: 1px solid rgba(57, 80, 107, 0.6);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), rgba(8, 12, 18, 0.72);
+      padding: 14px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .sidebar-panel-head {
+      display: grid;
+      gap: 4px;
+    }
+
+    .sidebar-panel-head h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .sidebar-kicker {
+      color: var(--accent-2);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .sidebar-nav a {
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid rgba(57, 80, 107, 0.8);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.015);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .sidebar-nav a:hover {
+      border-color: rgba(88, 216, 168, 0.55);
+      background: rgba(88, 216, 168, 0.08);
+    }
+
+    .sidebar-nav a.active {
+      border-color: rgba(88, 216, 168, 0.75);
+      background: rgba(88, 216, 168, 0.12);
+      box-shadow: 0 0 0 1px rgba(88, 216, 168, 0.12) inset;
+    }
+
+    .sidebar-nav-icon {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      border-radius: 11px;
+      border: 1px solid rgba(112, 182, 255, 0.3);
+      background: linear-gradient(180deg, rgba(112, 182, 255, 0.16), rgba(88, 216, 168, 0.08));
+      display: grid;
+      place-items: center;
+      color: var(--accent-2);
+      font-size: 1.02rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .sidebar-nav-icon::before {
+      content: attr(data-icon);
+    }
+
+    .sidebar-nav a.active .sidebar-nav-icon {
+      color: #072017;
+      background: var(--accent);
+      border-color: transparent;
+    }
+
+    .sidebar-nav-copy {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .sidebar-nav-copy > span {
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .sidebar-nav-copy > small {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+
+    .sidebar-stats {
+      display: grid;
+      gap: 10px;
+    }
+
+    .sidebar-stat {
+      border: 1px solid rgba(57, 80, 107, 0.8);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.015);
+      display: grid;
+      gap: 2px;
+    }
+
+    .sidebar-stat span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-stat strong {
+      font-size: 1rem;
+    }
+
+    .sidebar-stat small {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .sidebar-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .sidebar-actions a {
+      text-decoration: none;
+      border: 1px solid rgba(112, 182, 255, 0.45);
+      color: var(--accent-2);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: rgba(112, 182, 255, 0.08);
+      text-align: center;
+      font-size: 0.86rem;
+    }
+
+    .sidebar-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .settings-categories {
+      display: grid;
+      gap: 14px;
+    }
+
+    .settings-category-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    .settings-category-head:hover {
+      transform: translateY(-1px);
+    }
+
+    .settings-category-head::after {
+      content: "Abrir";
+      align-self: center;
+      border: 1px solid rgba(88, 216, 168, 0.28);
+      background: rgba(88, 216, 168, 0.08);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      flex: 0 0 auto;
+    }
+
+    .settings-category.is-open .settings-category-head::after {
+      content: "Fechar";
+      background: rgba(112, 182, 255, 0.09);
+      color: var(--accent-2);
+      border-color: rgba(112, 182, 255, 0.28);
+    }
+
+    .settings-category-head h2 {
+      margin: 2px 0 0;
+      font-size: 1.08rem;
+    }
+
+    .settings-category-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+      max-width: 58ch;
+    }
+
+    .category-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(112, 182, 255, 0.35);
+      color: var(--accent-2);
+      background: rgba(112, 182, 255, 0.08);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .settings-category-body {
+      display: grid;
+      gap: 14px;
+    }
+
+    .settings-category-body[hidden] {
+      display: none !important;
+    }
+
+    .settings-category.is-open {
+      border-color: rgba(88, 216, 168, 0.45);
+      box-shadow: 0 0 0 1px rgba(88, 216, 168, 0.1) inset;
+      background: rgba(8, 12, 18, 0.72);
+    }
+
+    .settings-category-body.media {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .settings-category,
+    .card {
+      scroll-margin-top: 18px;
     }
 
     .card {
@@ -415,9 +671,13 @@
       margin-top: 2px;
     }
 
-    @media (max-width: 940px) {
-      .grid {
+    @media (max-width: 1080px) {
+      .settings-shell {
         grid-template-columns: 1fr;
+      }
+
+      .settings-sidebar {
+        position: static;
       }
     }
 
@@ -433,7 +693,7 @@
   </style>
 </head>
 <body>
-  <main class="container">
+  <main class="container" id="top">
     <section class="hero">
       <h1>Painel de Configuracao de Widgets</h1>
       <p class="subtitle">Controle quais widgets estao ativos e gerencie a biblioteca de GIFs custom e o GIF separado da campainha.</p>
@@ -445,85 +705,193 @@
       </div>
     </section>
 
-    <section class="grid">
-      <article class="card">
-        <h2>Widgets Ativos</h2>
-        <p class="hint">Os widgets ativos entram na selecao por prioridade. Clique em salvar para aplicar.</p>
-
-        <section class="mode-box">
-          <div class="mode-row">
-            <label for="displayModeSelect">Modo de exibicao:</label>
-            <select id="displayModeSelect">
-              <option value="priority">Padrao (prioridade)</option>
-              <option value="custom_only">Sempre custom_gif</option>
-              <option value="hybrid">Hibrido</option>
-            </select>
+    <section class="settings-shell">
+      <aside class="settings-sidebar" aria-label="Barra lateral de navegação">
+        <div class="sidebar-panel">
+          <div class="sidebar-panel-head">
+            <span class="sidebar-kicker">Navegação</span>
+            <h2>Ir para</h2>
           </div>
-          <div id="hybridConfigFields" class="mode-row" hidden>
-            <label for="hybridPeriodInput">Periodo (s)</label>
-            <input id="hybridPeriodInput" type="number" min="10" max="86400" step="1" value="300" />
-            <label for="hybridShowInput">Tempo do GIF (s)</label>
-            <input id="hybridShowInput" type="number" min="1" max="3600" step="1" value="30" />
-          </div>
-          <div id="modeSummary" class="mode-meta">Modo atual: Padrao (prioridade)</div>
-        </section>
-
-        <div class="toolbar">
-          <button id="enableAllBtn" class="secondary">Ativar todos</button>
-          <button id="disableAllBtn" class="secondary">Desativar todos</button>
-          <button id="reloadWidgetsBtn">Recarregar</button>
-          <button id="saveWidgetsBtn" class="primary">Salvar configuracao</button>
+          <nav class="sidebar-nav">
+            <a href="#category-panel" data-target="category-panel">
+              <span class="sidebar-nav-icon" data-icon="⚙" aria-hidden="true"></span>
+              <span class="sidebar-nav-copy">
+                <span>Painel e exibição</span>
+                <small>Widgets ativos e modo</small>
+              </span>
+            </a>
+            <a href="#widgets-card" data-target="category-panel">
+              <span class="sidebar-nav-icon" data-icon="☰" aria-hidden="true"></span>
+              <span class="sidebar-nav-copy">
+                <span>Widgets ativos</span>
+                <small>Seleção, prioridade e salvar</small>
+              </span>
+            </a>
+            <a href="#category-media" data-target="category-media">
+              <span class="sidebar-nav-icon" data-icon="▦" aria-hidden="true"></span>
+              <span class="sidebar-nav-copy">
+                <span>Biblioteca de GIFs</span>
+                <small>Custom e campainha</small>
+              </span>
+            </a>
+            <a href="#custom-gif-card" data-target="category-media">
+              <span class="sidebar-nav-icon" data-icon="◼" aria-hidden="true"></span>
+              <span class="sidebar-nav-copy">
+                <span>Custom GIF</span>
+                <small>Galeria e previews</small>
+              </span>
+            </a>
+            <a href="#doorbell-gif-card" data-target="category-media">
+              <span class="sidebar-nav-icon" data-icon="◉" aria-hidden="true"></span>
+              <span class="sidebar-nav-copy">
+                <span>GIF da campainha</span>
+                <small>Preview e estado</small>
+              </span>
+            </a>
+          </nav>
         </div>
 
-        <section id="widgetsList" class="widgets"></section>
-        <div id="widgetsSummary" class="summary">-</div>
-        <div id="widgetsStatus" class="status"></div>
-      </article>
-
-      <article class="card full-width">
-        <h2>Biblioteca Custom GIF</h2>
-        <p class="hint">Envie varios GIFs, marque quais ficam ativos e o backend vai alternar entre eles. O ESP32 recebe o asset selecionado em um pacote de playback pronto para cache local.</p>
-
-        <section class="upload-box">
-          <div class="upload-row">
-            <input id="customGifFileInput" type="file" accept="image/gif" multiple />
-            <button id="uploadCustomGifBtn" class="primary">Adicionar GIF</button>
-            <button id="reloadCustomGifBtn">Atualizar biblioteca</button>
+        <div class="sidebar-panel">
+          <div class="sidebar-panel-head">
+            <span class="sidebar-kicker">Resumo</span>
+            <h2>Estado atual</h2>
           </div>
-          <div class="upload-row">
-            <button id="enableCustomGifWidgetBtn" class="secondary">Ativar custom_gif na lista</button>
-            <button id="clearCustomGifLibraryBtn" class="warn">Limpar biblioteca</button>
+          <div class="sidebar-stats">
+            <div class="sidebar-stat">
+              <span>Widgets</span>
+              <strong id="sidebarWidgetsCount">-</strong>
+              <small id="sidebarWidgetsMode">Modo: -</small>
+            </div>
+            <div class="sidebar-stat">
+              <span>Custom GIFs</span>
+              <strong id="sidebarCustomCount">-</strong>
+              <small id="sidebarCustomSelection">Selecionado: -</small>
+            </div>
+            <div class="sidebar-stat">
+              <span>Campainha</span>
+              <strong id="sidebarDoorbellState">-</strong>
+              <small id="sidebarDoorbellAsset">Asset: -</small>
+            </div>
           </div>
-        </section>
-
-        <div id="customGifSummary" class="summary">-</div>
-        <section id="customGifGallery" class="gif-gallery"></section>
-        <div id="customGifStatus" class="status"></div>
-      </article>
-
-      <article class="card">
-        <h2>GIF da campainha</h2>
-        <p class="hint">Este GIF é separado da biblioteca custom e só é usado quando a campainha dispara.</p>
-
-        <section class="upload-box">
-          <div class="upload-row">
-            <input id="doorbellGifFileInput" type="file" accept="image/gif" />
-            <button id="uploadDoorbellGifBtn" class="primary">Salvar GIF da campainha</button>
-            <button id="removeDoorbellGifBtn" class="warn">Remover GIF da campainha</button>
-          </div>
-          <div class="upload-row">
-            <button id="reloadDoorbellGifBtn">Atualizar status</button>
-          </div>
-        </section>
-
-        <div class="preview-wrap">
-          <img id="doorbellGifPreview" class="gif-card-preview" alt="Preview GIF da campainha" hidden />
-          <div id="doorbellGifPreviewEmpty" class="gif-card-placeholder">Nenhum GIF da campainha configurado ainda.</div>
-          <div id="doorbellGifMeta" class="gif-card-meta">-</div>
-          <div id="doorbellGifActions" class="gif-card-actions"></div>
+          <p class="sidebar-note">Clique em uma categoria para abrir os itens. Os ícones ajudam a encontrar o bloco certo sem rolar a página toda.</p>
         </div>
-        <div id="doorbellGifStatus" class="status"></div>
-      </article>
+
+        <div class="sidebar-panel">
+          <div class="sidebar-panel-head">
+            <span class="sidebar-kicker">Atalhos</span>
+            <h2>Ações rápidas</h2>
+          </div>
+          <div class="sidebar-actions">
+            <a href="/preview/painel">Abrir preview</a>
+            <a href="#top">Voltar ao topo</a>
+          </div>
+        </div>
+      </aside>
+
+      <section class="settings-categories">
+        <section class="settings-category" id="category-panel">
+          <header class="settings-category-head">
+            <div>
+              <span class="category-tag">Categoria 1</span>
+              <h2>Painel e exibição</h2>
+            </div>
+            <p>Escolha os widgets ativos, o modo de exibição e a ordem de prioridade do painel.</p>
+          </header>
+
+          <div class="settings-category-body" hidden>
+            <article class="card" id="widgets-card">
+              <h2>Widgets Ativos</h2>
+              <p class="hint">Os widgets ativos entram na selecao por prioridade. Clique em salvar para aplicar.</p>
+
+              <section class="mode-box">
+                <div class="mode-row">
+                  <label for="displayModeSelect">Modo de exibicao:</label>
+                  <select id="displayModeSelect">
+                    <option value="priority">Padrao (prioridade)</option>
+                    <option value="custom_only">Sempre custom_gif</option>
+                    <option value="hybrid">Hibrido</option>
+                  </select>
+                </div>
+                <div id="hybridConfigFields" class="mode-row" hidden>
+                  <label for="hybridPeriodInput">Periodo (s)</label>
+                  <input id="hybridPeriodInput" type="number" min="10" max="86400" step="1" value="300" />
+                  <label for="hybridShowInput">Tempo do GIF (s)</label>
+                  <input id="hybridShowInput" type="number" min="1" max="3600" step="1" value="30" />
+                </div>
+                <div id="modeSummary" class="mode-meta">Modo atual: Padrao (prioridade)</div>
+              </section>
+
+              <div class="toolbar">
+                <button id="enableAllBtn" class="secondary">Ativar todos</button>
+                <button id="disableAllBtn" class="secondary">Desativar todos</button>
+                <button id="reloadWidgetsBtn">Recarregar</button>
+                <button id="saveWidgetsBtn" class="primary">Salvar configuracao</button>
+              </div>
+
+              <section id="widgetsList" class="widgets"></section>
+              <div id="widgetsSummary" class="summary">-</div>
+              <div id="widgetsStatus" class="status"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="settings-category" id="category-media">
+          <header class="settings-category-head">
+            <div>
+              <span class="category-tag">Categoria 2</span>
+              <h2>Biblioteca de GIFs</h2>
+            </div>
+            <p>Separe os GIFs custom da campainha e acompanhe metadados, ativos e previews em blocos dedicados.</p>
+          </header>
+
+          <div class="settings-category-body media" hidden>
+            <article class="card full-width" id="custom-gif-card">
+              <h2>Biblioteca Custom GIF</h2>
+              <p class="hint">Envie varios GIFs, marque quais ficam ativos e o backend vai alternar entre eles. O ESP32 recebe o asset selecionado em um pacote de playback pronto para cache local.</p>
+
+              <section class="upload-box">
+                <div class="upload-row">
+                  <input id="customGifFileInput" type="file" accept="image/gif" multiple />
+                  <button id="uploadCustomGifBtn" class="primary">Adicionar GIF</button>
+                  <button id="reloadCustomGifBtn">Atualizar biblioteca</button>
+                </div>
+                <div class="upload-row">
+                  <button id="enableCustomGifWidgetBtn" class="secondary">Ativar custom_gif na lista</button>
+                  <button id="clearCustomGifLibraryBtn" class="warn">Limpar biblioteca</button>
+                </div>
+              </section>
+
+              <div id="customGifSummary" class="summary">-</div>
+              <section id="customGifGallery" class="gif-gallery"></section>
+              <div id="customGifStatus" class="status"></div>
+            </article>
+
+            <article class="card" id="doorbell-gif-card">
+              <h2>GIF da campainha</h2>
+              <p class="hint">Este GIF é separado da biblioteca custom e só é usado quando a campainha dispara.</p>
+
+              <section class="upload-box">
+                <div class="upload-row">
+                  <input id="doorbellGifFileInput" type="file" accept="image/gif" />
+                  <button id="uploadDoorbellGifBtn" class="primary">Salvar GIF da campainha</button>
+                  <button id="removeDoorbellGifBtn" class="warn">Remover GIF da campainha</button>
+                </div>
+                <div class="upload-row">
+                  <button id="reloadDoorbellGifBtn">Atualizar status</button>
+                </div>
+              </section>
+
+              <div class="preview-wrap">
+                <img id="doorbellGifPreview" class="gif-card-preview" alt="Preview GIF da campainha" hidden />
+                <div id="doorbellGifPreviewEmpty" class="gif-card-placeholder">Nenhum GIF da campainha configurado ainda.</div>
+                <div id="doorbellGifMeta" class="gif-card-meta">-</div>
+                <div id="doorbellGifActions" class="gif-card-actions"></div>
+              </div>
+              <div id="doorbellGifStatus" class="status"></div>
+            </article>
+          </div>
+        </section>
+      </section>
     </section>
 
     <div id="footerMeta" class="footer">-</div>
@@ -560,8 +928,19 @@
     const hybridShowInputEl = document.getElementById("hybridShowInput");
     const modeSummaryEl = document.getElementById("modeSummary");
 
+    const sidebarWidgetsCountEl = document.getElementById("sidebarWidgetsCount");
+    const sidebarWidgetsModeEl = document.getElementById("sidebarWidgetsMode");
+    const sidebarCustomCountEl = document.getElementById("sidebarCustomCount");
+    const sidebarCustomSelectionEl = document.getElementById("sidebarCustomSelection");
+    const sidebarDoorbellStateEl = document.getElementById("sidebarDoorbellState");
+    const sidebarDoorbellAssetEl = document.getElementById("sidebarDoorbellAsset");
+
+    const categorySections = Array.from(document.querySelectorAll(".settings-category"));
+    const sidebarNavLinks = Array.from(document.querySelectorAll(".sidebar-nav a[data-target]"));
+
     let latestWidgetsConfig = null;
     let latestGifState = null;
+    let activeCategoryId = null;
 
     const DISPLAY_MODES = new Set(["priority", "custom_only", "hybrid"]);
     const DEFAULT_HYBRID_PERIOD_SECONDS = 300;
@@ -931,6 +1310,7 @@
       latestGifState = state;
       renderCustomGifGallery(state);
       renderDoorbellGifState(state);
+      renderSidebarState();
     }
 
     async function loadCustomGifState(options = {}) {
@@ -1155,6 +1535,200 @@
       footerMetaEl.textContent = "Ultima atualizacao da configuracao: " + formatDateTime(updatedAt);
     }
 
+    function getCategoryBody(section) {
+      return section?.querySelector(".settings-category-body") || null;
+    }
+
+    function getCategoryHead(section) {
+      return section?.querySelector(".settings-category-head") || null;
+    }
+
+    function setSidebarActiveCategory(categoryId) {
+      activeCategoryId = categoryId || null;
+
+      for (const link of sidebarNavLinks) {
+        const targetId = link.dataset.target || "";
+        link.classList.toggle("active", Boolean(categoryId) && targetId === categoryId);
+      }
+
+      for (const section of categorySections) {
+        const head = getCategoryHead(section);
+        if (head) {
+          head.setAttribute("aria-expanded", section.id === categoryId ? "true" : "false");
+        }
+      }
+    }
+
+    function closeCategory(section) {
+      if (!section) {
+        return;
+      }
+
+      section.classList.remove("is-open");
+      const body = getCategoryBody(section);
+      if (body) {
+        body.hidden = true;
+      }
+      if (activeCategoryId === section.id) {
+        activeCategoryId = null;
+      }
+    }
+
+    function openCategory(section, { scroll = false } = {}) {
+      if (!section) {
+        return false;
+      }
+
+      for (const otherSection of categorySections) {
+        if (otherSection !== section) {
+          closeCategory(otherSection);
+        }
+      }
+
+      const body = getCategoryBody(section);
+      if (body) {
+        body.hidden = false;
+      }
+      section.classList.add("is-open");
+      setSidebarActiveCategory(section.id);
+
+      if (scroll) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      return true;
+    }
+
+    function toggleCategory(section, { scroll = false } = {}) {
+      if (!section) {
+        return false;
+      }
+
+      if (section.classList.contains("is-open")) {
+        closeCategory(section);
+        setSidebarActiveCategory(null);
+        return false;
+      }
+
+      return openCategory(section, { scroll });
+    }
+
+    function openCategoryById(categoryId, { scroll = false } = {}) {
+      const targetElement = document.getElementById(categoryId);
+      const section = targetElement?.classList.contains("settings-category")
+        ? targetElement
+        : targetElement?.closest(".settings-category");
+
+      if (!section) {
+        return false;
+      }
+
+      const opened = openCategory(section, { scroll: false });
+      if (!opened) {
+        return false;
+      }
+
+      if (scroll) {
+        const scrollTarget = targetElement && targetElement !== section ? targetElement : section;
+        scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      return true;
+    }
+
+    function initializeCategoryAccordion() {
+      for (const section of categorySections) {
+        const head = getCategoryHead(section);
+        if (!head) {
+          continue;
+        }
+
+        head.setAttribute("role", "button");
+        head.setAttribute("tabindex", "0");
+        head.setAttribute("aria-expanded", "false");
+
+        head.addEventListener("click", () => {
+          toggleCategory(section, { scroll: false });
+        });
+
+        head.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggleCategory(section, { scroll: false });
+          }
+        });
+
+        const body = getCategoryBody(section);
+        if (body) {
+          body.hidden = true;
+        }
+      }
+
+      for (const link of sidebarNavLinks) {
+        link.addEventListener("click", (event) => {
+          const targetId = link.dataset.target || "";
+          const anchorId = (link.getAttribute("href") || "").replace(/^#/, "");
+          if (!targetId) {
+            return;
+          }
+
+          event.preventDefault();
+          openCategoryById(targetId, { scroll: true });
+
+          if (anchorId) {
+            history.replaceState(null, "", `#${anchorId}`);
+            const anchor = document.getElementById(anchorId);
+            if (anchor && anchor !== document.getElementById(targetId)) {
+              anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }
+        });
+      }
+
+      window.addEventListener("hashchange", () => {
+        const targetId = window.location.hash.replace(/^#/, "");
+        if (targetId) {
+          openCategoryById(targetId, { scroll: true });
+        }
+      });
+
+      if (window.location.hash) {
+        const targetId = window.location.hash.replace(/^#/, "");
+        if (!openCategoryById(targetId, { scroll: true })) {
+          setSidebarActiveCategory(null);
+        }
+      }
+    }
+
+    function renderSidebarState() {
+      const widgets = Array.isArray(latestWidgetsConfig?.widgets) ? latestWidgetsConfig.widgets : [];
+      const enabledWidgets = widgets.filter((widget) => Boolean(widget.enabled));
+      const configDisplayMode = normalizeDisplayMode(latestWidgetsConfig?.display_mode);
+
+      sidebarWidgetsCountEl.textContent = widgets.length > 0 ? `${enabledWidgets.length}/${widgets.length}` : "-";
+      sidebarWidgetsModeEl.textContent = latestWidgetsConfig
+        ? `Modo: ${formatDisplayMode(configDisplayMode)}`
+        : "Modo: -";
+
+      const custom = latestGifState?.custom || {};
+      const customAssets = Array.isArray(custom.assets) ? custom.assets : [];
+      const customActiveCount = Number(
+        custom.active_count || customAssets.filter((asset) => Boolean(asset?.active)).length
+      );
+      const selectedCustom = custom.selected_asset || null;
+
+      sidebarCustomCountEl.textContent = customAssets.length > 0 ? `${customActiveCount}/${customAssets.length}` : "-";
+      sidebarCustomSelectionEl.textContent = `Selecionado: ${selectedCustom ? getAssetName(selectedCustom) : "nenhum"}`;
+
+      const doorbell = latestGifState?.doorbell || {};
+      const doorbellAsset = doorbell.asset || null;
+
+      sidebarDoorbellStateEl.textContent = doorbellAsset
+        ? (doorbell.configured ? "Ativo" : "Inativo")
+        : "Sem GIF";
+      sidebarDoorbellAssetEl.textContent = `Asset: ${doorbellAsset ? getAssetName(doorbellAsset) : "nenhum"}`;
+    }
+
     function renderWidgets(config) {
       latestWidgetsConfig = config;
       widgetsListEl.innerHTML = "";
@@ -1217,6 +1791,7 @@
       syncDisplayModeUi(configDisplayMode);
 
       widgetsSummaryEl.textContent = `Ativos: ${enabledCount} de ${widgets.length} | modo: ${formatDisplayMode(configDisplayMode)}`;
+      renderSidebarState();
       updateFooterMeta();
     }
 
@@ -1330,6 +1905,7 @@
       setStatus(widgetsStatusEl, "Tempo do GIF alterado. Clique em salvar para aplicar.", "warn");
     });
 
+    initializeCategoryAccordion();
     initPage();
   </script>
 </body>
