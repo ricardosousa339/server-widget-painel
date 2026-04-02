@@ -6,3 +6,6 @@ __pycache__/
 .cache
 .cache/.cache
 .cache
+
+# Home Assistant local runtime/configuration state
+data/homeassistant/

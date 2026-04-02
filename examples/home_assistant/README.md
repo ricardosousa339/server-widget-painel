@@ -67,6 +67,8 @@ remove_windows_wsl_home_assistant_service.bat
 2. Add Integration -> Tuya
 3. Faça login com suas credenciais/projeto Tuya Cloud
 4. Confirme qual entidade representa o toque da campainha
+   - Nesta instalacao, o trigger usado pelo pacote eh `event.campainha_inteligente_doorbell_picture`.
+   - `camera.campainha_inteligente` eh apenas a camera de preview, nao o gatilho.
 
 ## 6) Criar automacao da campainha para o painel
 
@@ -82,7 +84,7 @@ Passos sugeridos:
 2. Crie a pasta `/config/packages` se nao existir.
 3. Copie o arquivo de exemplo para:
    - `/config/packages/server_widget_doorbell.yaml`
-4. Ajuste `entity_id` da campainha no trigger.
+4. Ajuste `entity_id` da campainha no trigger, se sua instalacao usar outro identificador.
 5. Reinicie o Home Assistant.
 
 ## 7) Verificacao ponta a ponta

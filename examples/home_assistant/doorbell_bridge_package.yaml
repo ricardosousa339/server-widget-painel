@@ -1,5 +1,6 @@
 # Pacote de exemplo para Home Assistant.
-# Ajuste os valores de entity_id e URL conforme seu ambiente.
+# Nesta instalacao, o trigger real da campainha eh o evento da entidade abaixo.
+# camera.campainha_inteligente serve apenas para preview da camera.
 
 rest_command:
   painel_doorbell_trigger:
@@ -21,15 +22,16 @@ automation:
     description: Dispara alerta temporario no painel quando a campainha toca.
     mode: restart
     trigger:
-      # Exemplo 1: entidade binaria que vai para "on" ao tocar.
+      # Gatilho real da campainha nesta instalacao.
       - platform: state
-        entity_id: binary_sensor.substitua_pela_sua_entidade_da_campainha
-        to: "on"
+        entity_id: event.campainha_inteligente_doorbell_picture
+        to: "triggered"
 
-      # Exemplo 2 (opcional): alguns modelos mudam atributo/evento em sensor.
-      # - platform: state
-      #   entity_id: sensor.substitua_pela_sua_entidade
-      #   to: "ring"
+      # Gatilho de teste via webhook (sem depender da entidade da campainha).
+      # Teste com:
+      # curl -X POST "http://127.0.0.1:8123/api/webhook/server_widget_doorbell_test"
+      - platform: webhook
+        webhook_id: server_widget_doorbell_test
 
     action:
       - service: rest_command.painel_doorbell_trigger
