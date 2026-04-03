@@ -696,7 +696,7 @@
   <main class="container" id="top">
     <section class="hero">
       <h1>Painel de Configuracao de Widgets</h1>
-      <p class="subtitle">Controle quais widgets estao ativos e gerencie a biblioteca de GIFs custom e o GIF separado da campainha.</p>
+      <p class="subtitle">Controle quais widgets estao ativos e gerencie a biblioteca de GIFs custom, o GIF da campainha e a imagem vertical com scroll.</p>
       <div class="quick-links">
         <a href="/preview/painel">Preview painel</a>
         <a href="/preview/frame">Preview frame</a>
@@ -748,6 +748,13 @@
                 <small>Preview e estado</small>
               </span>
             </a>
+            <a href="#vertical-image-card" data-target="category-media">
+              <span class="sidebar-nav-icon" data-icon="↕" aria-hidden="true"></span>
+              <span class="sidebar-nav-copy">
+                <span>Imagem vertical</span>
+                <small>Upload e velocidade</small>
+              </span>
+            </a>
           </nav>
         </div>
 
@@ -771,6 +778,11 @@
               <span>Campainha</span>
               <strong id="sidebarDoorbellState">-</strong>
               <small id="sidebarDoorbellAsset">Asset: -</small>
+            </div>
+            <div class="sidebar-stat">
+              <span>Imagem vertical</span>
+              <strong id="sidebarVerticalState">-</strong>
+              <small id="sidebarVerticalSpeed">Velocidade: -</small>
             </div>
           </div>
           <p class="sidebar-note">Clique em uma categoria para abrir os itens. Os ícones ajudam a encontrar o bloco certo sem rolar a página toda.</p>
@@ -889,6 +901,36 @@
               </div>
               <div id="doorbellGifStatus" class="status"></div>
             </article>
+
+            <article class="card" id="vertical-image-card">
+              <h2>Imagem vertical (scroll)</h2>
+              <p class="hint">Envie uma imagem grande (idealmente largura 64px). O painel percorre de baixo para cima automaticamente.</p>
+
+              <section class="upload-box">
+                <div class="upload-row">
+                  <input id="verticalImageFileInput" type="file" accept="image/*" />
+                  <button id="uploadVerticalImageBtn" class="primary">Salvar imagem</button>
+                  <button id="reloadVerticalImageBtn">Atualizar status</button>
+                </div>
+                <div class="upload-row">
+                  <label for="verticalImageSpeedInput">Velocidade (px/s)</label>
+                  <input id="verticalImageSpeedInput" type="number" min="1" max="120" step="1" value="14" />
+                  <button id="saveVerticalImageSpeedBtn" class="secondary">Salvar velocidade</button>
+                  <button id="removeVerticalImageBtn" class="warn">Remover imagem</button>
+                </div>
+                <div class="upload-row">
+                  <button id="enableVerticalImageWidgetBtn" class="secondary">Ativar vertical_image na lista</button>
+                </div>
+              </section>
+
+              <div class="preview-wrap">
+                <img id="verticalImagePreview" class="gif-card-preview" alt="Preview da imagem vertical" hidden />
+                <div id="verticalImagePreviewEmpty" class="gif-card-placeholder">Nenhuma imagem vertical configurada ainda.</div>
+                <div id="verticalImageMeta" class="gif-card-meta">-</div>
+                <div id="verticalImageActions" class="gif-card-actions"></div>
+              </div>
+              <div id="verticalImageStatus" class="status"></div>
+            </article>
           </div>
         </section>
       </section>
@@ -922,6 +964,19 @@
     const removeDoorbellGifBtnEl = document.getElementById("removeDoorbellGifBtn");
     const reloadDoorbellGifBtnEl = document.getElementById("reloadDoorbellGifBtn");
 
+    const verticalImagePreviewEl = document.getElementById("verticalImagePreview");
+    const verticalImagePreviewEmptyEl = document.getElementById("verticalImagePreviewEmpty");
+    const verticalImageMetaEl = document.getElementById("verticalImageMeta");
+    const verticalImageActionsEl = document.getElementById("verticalImageActions");
+    const verticalImageStatusEl = document.getElementById("verticalImageStatus");
+    const verticalImageFileInputEl = document.getElementById("verticalImageFileInput");
+    const verticalImageSpeedInputEl = document.getElementById("verticalImageSpeedInput");
+    const uploadVerticalImageBtnEl = document.getElementById("uploadVerticalImageBtn");
+    const removeVerticalImageBtnEl = document.getElementById("removeVerticalImageBtn");
+    const reloadVerticalImageBtnEl = document.getElementById("reloadVerticalImageBtn");
+    const saveVerticalImageSpeedBtnEl = document.getElementById("saveVerticalImageSpeedBtn");
+    const enableVerticalImageWidgetBtnEl = document.getElementById("enableVerticalImageWidgetBtn");
+
     const displayModeSelectEl = document.getElementById("displayModeSelect");
     const hybridConfigFieldsEl = document.getElementById("hybridConfigFields");
     const hybridPeriodInputEl = document.getElementById("hybridPeriodInput");
@@ -934,12 +989,15 @@
     const sidebarCustomSelectionEl = document.getElementById("sidebarCustomSelection");
     const sidebarDoorbellStateEl = document.getElementById("sidebarDoorbellState");
     const sidebarDoorbellAssetEl = document.getElementById("sidebarDoorbellAsset");
+    const sidebarVerticalStateEl = document.getElementById("sidebarVerticalState");
+    const sidebarVerticalSpeedEl = document.getElementById("sidebarVerticalSpeed");
 
     const categorySections = Array.from(document.querySelectorAll(".settings-category"));
     const sidebarNavLinks = Array.from(document.querySelectorAll(".sidebar-nav a[data-target]"));
 
     let latestWidgetsConfig = null;
     let latestGifState = null;
+    let latestVerticalImageState = null;
     let activeCategoryId = null;
 
     const DISPLAY_MODES = new Set(["priority", "custom_only", "hybrid"]);
@@ -1113,6 +1171,101 @@
         method: "POST",
         body: form,
       });
+    }
+
+    async function uploadVerticalImageAsset(file, active) {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("active", active ? "true" : "false");
+
+      return await requestJson("/widgets/vertical-image/upload", {
+        method: "POST",
+        body: form,
+      });
+    }
+
+    async function loadVerticalImageState(options = {}) {
+      const silent = Boolean(options.silent);
+      if (!silent) {
+        setStatus(verticalImageStatusEl, "Carregando imagem vertical...", "");
+      }
+
+      const res = await fetch("/widgets/vertical-image");
+      if (!res.ok) {
+        throw new Error("Falha ao buscar /widgets/vertical-image");
+      }
+
+      const state = await res.json();
+      renderVerticalImageState(state);
+
+      if (!silent) {
+        setStatus(verticalImageStatusEl, "Imagem vertical atualizada.", "ok");
+      }
+
+      return state;
+    }
+
+    function renderVerticalImageState(state) {
+      latestVerticalImageState = state;
+
+      const asset = state?.asset || null;
+      const speed = Number(state?.scroll_speed_pps || 14);
+      verticalImageSpeedInputEl.value = String(speed);
+
+      renderAssetPreview(verticalImagePreviewEl, verticalImagePreviewEmptyEl, asset);
+      removeVerticalImageBtnEl.disabled = !asset;
+
+      verticalImageMetaEl.textContent = asset
+        ? `${formatAssetMeta(asset)} | velocidade: ${speed} px/s`
+        : `Nenhuma imagem vertical configurada. Velocidade atual: ${speed} px/s`;
+
+      clearElement(verticalImageActionsEl);
+
+      if (asset) {
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = Boolean(asset.active);
+
+        checkbox.addEventListener("change", async () => {
+          const nextActive = checkbox.checked;
+          checkbox.disabled = true;
+          setStatus(
+            verticalImageStatusEl,
+            `${nextActive ? "Ativando" : "Desativando"} imagem vertical...`,
+            ""
+          );
+
+          try {
+            const updatedState = await requestJson("/widgets/vertical-image/config", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ active: nextActive }),
+            });
+            renderVerticalImageState(updatedState);
+            setStatus(
+              verticalImageStatusEl,
+              `Imagem vertical ${nextActive ? "ativada" : "desativada"}.`,
+              "ok"
+            );
+          } catch (error) {
+            checkbox.checked = !nextActive;
+            setStatus(
+              verticalImageStatusEl,
+              "Erro ao atualizar imagem vertical: " + error.message,
+              "err"
+            );
+          } finally {
+            checkbox.disabled = false;
+          }
+        });
+
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode("Ativo"));
+        verticalImageActionsEl.appendChild(label);
+      }
+
+      renderSidebarState();
     }
 
     function renderDoorbellGifState(state) {
@@ -1336,10 +1489,10 @@
       return state;
     }
 
-    async function ensureCustomGifWidgetEnabled() {
-      if (!setWidgetToggle("custom_gif", true)) {
+    async function ensureWidgetEnabled(widgetName) {
+      if (!setWidgetToggle(widgetName, true)) {
         await loadWidgetsConfig();
-        setWidgetToggle("custom_gif", true);
+        setWidgetToggle(widgetName, true);
       }
 
       try {
@@ -1347,10 +1500,18 @@
       } catch (error) {
         setStatus(
           widgetsStatusEl,
-          "Nao foi possivel ativar custom_gif automaticamente: " + error.message,
+          `Nao foi possivel ativar ${widgetName} automaticamente: ` + error.message,
           "warn"
         );
       }
+    }
+
+    async function ensureCustomGifWidgetEnabled() {
+      await ensureWidgetEnabled("custom_gif");
+    }
+
+    async function ensureVerticalImageWidgetEnabled() {
+      await ensureWidgetEnabled("vertical_image");
     }
 
     async function uploadCustomGif() {
@@ -1465,8 +1626,93 @@
       }
     }
 
+    async function uploadVerticalImage() {
+      const file = verticalImageFileInputEl.files?.[0];
+      if (!file) {
+        setStatus(verticalImageStatusEl, "Selecione uma imagem antes de enviar.", "warn");
+        return;
+      }
+
+      uploadVerticalImageBtnEl.disabled = true;
+      setStatus(verticalImageStatusEl, `Enviando ${file.name}...`, "");
+
+      try {
+        await uploadVerticalImageAsset(file, true);
+        verticalImageFileInputEl.value = "";
+        await loadVerticalImageState({ silent: true });
+        await ensureVerticalImageWidgetEnabled();
+        setStatus(verticalImageStatusEl, `Imagem ${file.name} salva com sucesso.`, "ok");
+      } catch (error) {
+        try {
+          await loadVerticalImageState({ silent: true });
+        } catch (_ignored) {
+        }
+        setStatus(verticalImageStatusEl, "Erro no upload: " + error.message, "err");
+      } finally {
+        uploadVerticalImageBtnEl.disabled = false;
+      }
+    }
+
+    async function removeVerticalImage() {
+      const confirmed = window.confirm("Remover a imagem vertical atual?");
+      if (!confirmed) {
+        return;
+      }
+
+      removeVerticalImageBtnEl.disabled = true;
+      setStatus(verticalImageStatusEl, "Removendo imagem vertical...", "");
+
+      try {
+        const state = await requestJson("/widgets/vertical-image", {
+          method: "DELETE",
+        });
+        renderVerticalImageState(state);
+        setStatus(verticalImageStatusEl, "Imagem vertical removida.", "ok");
+      } catch (error) {
+        setStatus(verticalImageStatusEl, "Erro ao remover imagem: " + error.message, "err");
+      } finally {
+        removeVerticalImageBtnEl.disabled = false;
+      }
+    }
+
+    async function saveVerticalImageSpeed() {
+      const speed = sanitizeInt(
+        verticalImageSpeedInputEl.value,
+        Number(latestVerticalImageState?.scroll_speed_pps || 14),
+        1,
+        120
+      );
+      verticalImageSpeedInputEl.value = String(speed);
+
+      saveVerticalImageSpeedBtnEl.disabled = true;
+      setStatus(verticalImageStatusEl, `Salvando velocidade (${speed} px/s)...`, "");
+
+      try {
+        const state = await requestJson("/widgets/vertical-image/config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scroll_speed_pps: speed }),
+        });
+        renderVerticalImageState(state);
+        setStatus(verticalImageStatusEl, `Velocidade atualizada para ${speed} px/s.`, "ok");
+      } catch (error) {
+        setStatus(verticalImageStatusEl, "Erro ao salvar velocidade: " + error.message, "err");
+      } finally {
+        saveVerticalImageSpeedBtnEl.disabled = false;
+      }
+    }
+
+    async function activateVerticalImageWidget() {
+      await ensureVerticalImageWidgetEnabled();
+      setStatus(widgetsStatusEl, "vertical_image ativado na lista.", "ok");
+    }
+
     async function initPage() {
-      await Promise.allSettled([loadWidgetsConfig(), loadCustomGifState()]);
+      await Promise.allSettled([
+        loadWidgetsConfig(),
+        loadCustomGifState(),
+        loadVerticalImageState(),
+      ]);
     }
 
     function syncDisplayModeUi(mode) {
@@ -1727,6 +1973,17 @@
         ? (doorbell.configured ? "Ativo" : "Inativo")
         : "Sem GIF";
       sidebarDoorbellAssetEl.textContent = `Asset: ${doorbellAsset ? getAssetName(doorbellAsset) : "nenhum"}`;
+
+      const vertical = latestVerticalImageState || {};
+      const verticalAsset = vertical.asset || null;
+      const verticalSpeed = Number(vertical.scroll_speed_pps || 0);
+
+      sidebarVerticalStateEl.textContent = verticalAsset
+        ? (verticalAsset.active ? "Ativo" : "Inativo")
+        : "Sem imagem";
+      sidebarVerticalSpeedEl.textContent = Number.isFinite(verticalSpeed) && verticalSpeed > 0
+        ? `Velocidade: ${verticalSpeed} px/s`
+        : "Velocidade: -";
     }
 
     function renderWidgets(config) {
@@ -1889,6 +2146,12 @@
     reloadDoorbellGifBtnEl.addEventListener("click", () => loadCustomGifState());
     uploadDoorbellGifBtnEl.addEventListener("click", uploadDoorbellGif);
     removeDoorbellGifBtnEl.addEventListener("click", removeDoorbellGif);
+
+    reloadVerticalImageBtnEl.addEventListener("click", () => loadVerticalImageState());
+    uploadVerticalImageBtnEl.addEventListener("click", uploadVerticalImage);
+    removeVerticalImageBtnEl.addEventListener("click", removeVerticalImage);
+    saveVerticalImageSpeedBtnEl.addEventListener("click", saveVerticalImageSpeed);
+    enableVerticalImageWidgetBtnEl.addEventListener("click", activateVerticalImageWidget);
 
     displayModeSelectEl.addEventListener("change", () => {
       syncDisplayModeUi(displayModeSelectEl.value);

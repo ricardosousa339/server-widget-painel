@@ -32,6 +32,18 @@ class Settings:
     custom_gif_max_upload_bytes: int = int(
         os.getenv("CUSTOM_GIF_MAX_UPLOAD_BYTES", str(8 * 1024 * 1024))
     )
+    vertical_image_state_path: Path = Path(
+        os.getenv("VERTICAL_IMAGE_STATE_PATH", "data/vertical_image_state.json")
+    )
+    vertical_image_upload_dir: Path = Path(
+        os.getenv("VERTICAL_IMAGE_UPLOAD_DIR", "data/uploads/vertical_image")
+    )
+    vertical_image_max_upload_bytes: int = int(
+        os.getenv("VERTICAL_IMAGE_MAX_UPLOAD_BYTES", str(8 * 1024 * 1024))
+    )
+    vertical_image_scroll_speed_pps: int = int(
+        os.getenv("VERTICAL_IMAGE_SCROLL_SPEED_PPS", "14")
+    )
     doorbell_alert_default_seconds: int = int(
         os.getenv("DOORBELL_ALERT_DEFAULT_SECONDS", "8")
     )

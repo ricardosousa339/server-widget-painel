@@ -36,8 +36,8 @@ class FrameRenderer:
             self._draw_clock(frame, data)
         elif widget == "spotify":
             self._draw_media_like(frame, data, label=widget, now_ms=render_now_ms)
-        elif widget == "custom_gif":
-            self._draw_custom_gif(frame, data)
+        elif widget in {"custom_gif", "vertical_image"}:
+            self._draw_payload_frame(frame, data)
         else:
             self._draw_fallback(frame)
 
@@ -62,7 +62,7 @@ class FrameRenderer:
         )
         self._force_monochrome(frame, threshold=96)
 
-    def _draw_custom_gif(self, frame: Image.Image, data: dict[str, Any]) -> None:
+    def _draw_payload_frame(self, frame: Image.Image, data: dict[str, Any]) -> None:
         frame_payload = data.get("frame")
         if not isinstance(frame_payload, dict):
             self._draw_fallback(frame)

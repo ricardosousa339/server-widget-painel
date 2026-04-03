@@ -14,15 +14,18 @@ from app.dependencies import (
     load_frame_preview_template,
     load_preview_template,
     load_widgets_config_template,
+    vertical_image_widget,
     widget_manager,
 )
 from app.schemas import (
     CustomGifAssetUpdateRequest,
     DoorbellTriggerRequest,
+    VerticalImageUpdateRequest,
     WidgetConfigUpdate,
 )
 from app.services.image_service import ImageMode
 from app.widgets.custom_gif_widget import CustomGifWidgetError
+from app.widgets.vertical_image_widget import VerticalImageWidgetError
 
 router = APIRouter()
 
@@ -45,6 +48,8 @@ def root() -> dict[str, Any]:
         "custom_gif_api": "/widgets/custom-gif",
         "custom_gif_upload": "/widgets/custom-gif/upload",
         "custom_gif_playback_api": "/widgets/custom-gif/playback",
+        "vertical_image_api": "/widgets/vertical-image",
+        "vertical_image_upload": "/widgets/vertical-image/upload",
         "doorbell_trigger_api": "/integrations/doorbell/trigger",
         "doorbell_state_api": "/integrations/doorbell/state",
         "health": "/health",
@@ -176,6 +181,65 @@ def delete_custom_gif(kind: str = Query(default="custom", description="custom ou
     try:
         return custom_gif_widget.clear_gif(kind=kind)
     except CustomGifWidgetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/widgets/vertical-image")
+def get_vertical_image_state() -> dict[str, Any]:
+    return vertical_image_widget.get_state()
+
+
+@router.get("/widgets/vertical-image/raw")
+def get_vertical_image_raw(
+    asset_id: str | None = Query(default=None, description="ID do asset especifico"),
+) -> FileResponse:
+    raw_path = vertical_image_widget.raw_file_path(asset_id=asset_id)
+    if raw_path is None:
+        raise HTTPException(status_code=404, detail="Nenhuma imagem vertical configurada")
+
+    media_type = "image/png"
+    suffix = raw_path.suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        media_type = "image/jpeg"
+    elif suffix == ".webp":
+        media_type = "image/webp"
+
+    return FileResponse(path=str(raw_path), media_type=media_type, filename=raw_path.name)
+
+
+@router.post("/widgets/vertical-image/upload")
+async def upload_vertical_image(
+    file: UploadFile = File(...),
+    active: bool = Form(default=True),
+) -> dict[str, Any]:
+    raw_bytes = await file.read()
+    try:
+        return vertical_image_widget.save_image(
+            filename=file.filename or "vertical_image.png",
+            content_type=file.content_type or "image/png",
+            raw_bytes=raw_bytes,
+            active=active,
+        )
+    except VerticalImageWidgetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch("/widgets/vertical-image/config")
+def update_vertical_image_config(update: VerticalImageUpdateRequest) -> dict[str, Any]:
+    try:
+        return vertical_image_widget.update_config(
+            active=update.active,
+            scroll_speed_pps=update.normalized_scroll_speed_pps(),
+        )
+    except VerticalImageWidgetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/widgets/vertical-image")
+def delete_vertical_image() -> dict[str, Any]:
+    try:
+        return vertical_image_widget.clear_image()
+    except VerticalImageWidgetError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

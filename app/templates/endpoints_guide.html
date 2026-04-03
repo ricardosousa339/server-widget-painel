@@ -271,7 +271,7 @@ http://127.0.0.1:8000/preview/frame</pre>
           <span class="path">/config/widgets e /widgets/config</span>
         </header>
         <div class="card-body">
-          <p class="desc">Tela amigavel para escolher widgets ativos, gerenciar a biblioteca de GIFs custom e configurar o GIF separado da campainha.</p>
+          <p class="desc">Tela amigavel para escolher widgets ativos, gerenciar a biblioteca de GIFs custom, configurar o GIF separado da campainha e o upload da imagem vertical.</p>
           <pre>http://127.0.0.1:8000/config/widgets
 curl http://127.0.0.1:8000/widgets/config</pre>
         </div>
@@ -286,7 +286,7 @@ curl http://127.0.0.1:8000/widgets/config</pre>
           <p class="desc">Atualiza os widgets habilitados no backend.</p>
           <pre>curl -X POST "http://127.0.0.1:8000/widgets/config" \
   -H "Content-Type: application/json" \
-  -d '{"enabled_widgets": ["spotify", "custom_gif", "clock"]}'</pre>
+  -d '{"enabled_widgets": ["spotify", "custom_gif", "vertical_image", "clock"]}'</pre>
         </div>
       </article>
 
@@ -339,6 +339,55 @@ curl -OJ "http://127.0.0.1:8000/widgets/custom-gif/playback?kind=custom"</pre>
           <p class="desc">Remove um asset especifico ou limpa a biblioteca inteira do kind indicado.</p>
           <pre>curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif/ASSET_ID"
 curl -X DELETE "http://127.0.0.1:8000/widgets/custom-gif?kind=custom"</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method get">GET</span>
+          <span class="path">/widgets/vertical-image, /widgets/vertical-image/raw</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Consulta o estado da imagem vertical e baixa o arquivo bruto atualmente ativo.</p>
+          <pre>curl http://127.0.0.1:8000/widgets/vertical-image
+curl -OJ "http://127.0.0.1:8000/widgets/vertical-image/raw"</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method post">POST</span>
+          <span class="path">/widgets/vertical-image/upload</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Faz upload de uma imagem grande para scroll vertical (largura normalizada para 64px). Aceita `active` no multipart.</p>
+          <pre>curl -X POST "http://127.0.0.1:8000/widgets/vertical-image/upload" \
+  -F "file=@/caminho/imagem_longa.png" \
+  -F "active=true"</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method patch">PATCH</span>
+          <span class="path">/widgets/vertical-image/config</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Atualiza ativo e velocidade de scroll vertical (`scroll_speed_pps`).</p>
+          <pre>curl -X PATCH "http://127.0.0.1:8000/widgets/vertical-image/config" \
+  -H "Content-Type: application/json" \
+  -d '{"active":true,"scroll_speed_pps":14}'</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <span class="method delete">DEL</span>
+          <span class="path">/widgets/vertical-image</span>
+        </header>
+        <div class="card-body">
+          <p class="desc">Remove a imagem vertical configurada e limpa o estado desse widget.</p>
+          <pre>curl -X DELETE "http://127.0.0.1:8000/widgets/vertical-image"</pre>
         </div>
       </article>
 

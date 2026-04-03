@@ -14,3 +14,5 @@ data/homeassistant/
 data/custom_gifs_state.json
 data/uploads/custom_gifs/
 data/uploads/doorbell_gif/
+data/vertical_image_state.json
+data/uploads/vertical_image/

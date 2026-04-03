@@ -247,6 +247,59 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second_payload["widget"], "custom_gif")
         self.assertEqual(custom_widget.calls[0]["kind"], "doorbell")
 
+    async def test_custom_only_falls_back_to_vertical_image_before_clock(self) -> None:
+        spotify_widget = FakeWidget("spotify", 100, None)
+        custom_widget = FakeWidget("custom_gif", 80, None)
+        vertical_widget = FakeWidget(
+            "vertical_image",
+            70,
+            {
+                "widget": "vertical_image",
+                "priority": 70,
+                "ts": 1234567890,
+                "data": {
+                    "asset_id": "vertical-1",
+                    "frame": {
+                        "w": 64,
+                        "h": 32,
+                        "enc": "rgb565_base64",
+                        "data": "",
+                    },
+                },
+            },
+        )
+        clock_widget = FakeWidget(
+            "clock",
+            0,
+            {
+                "widget": "clock",
+                "priority": 0,
+                "ts": 1234567890,
+                "data": {"time": "12:00"},
+            },
+        )
+        manager = WidgetManager(
+            primary_widgets=[spotify_widget, custom_widget, vertical_widget],
+            fallback_widget=clock_widget,
+            config_store=FakeConfigStore(
+                {
+                    "enabled_widgets": ["spotify", "custom_gif", "vertical_image", "clock"],
+                    "display_mode": "custom_only",
+                    "hybrid_period_seconds": 300,
+                    "hybrid_show_seconds": 30,
+                    "updated_at": 1,
+                }
+            ),
+        )
+
+        payload = await manager.get_screen_payload()
+
+        self.assertEqual(payload["widget"], "vertical_image")
+        self.assertEqual(len(custom_widget.calls), 1)
+        self.assertEqual(len(spotify_widget.calls), 2)
+        self.assertEqual(len(vertical_widget.calls), 1)
+        self.assertEqual(len(clock_widget.calls), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

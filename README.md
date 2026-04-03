@@ -9,13 +9,15 @@ A aplicacao usa widgets orientados a objetos:
 - `BaseWidget`: classe abstrata com metodo `get_data()`.
 - `SpotifyWidget`: prioridade maxima (100) quando `currently_playing == true`.
 - `CustomGifWidget`: biblioteca de GIFs custom, com GIF separado para a campainha, e prioridade 80 quando existe GIF custom ativo.
+- `VerticalImageWidget`: imagem unica com scroll vertical de baixo para cima (largura 64), prioridade 70.
 - `ClockWidget`: fallback permanente (prioridade 0).
 
 Fluxo de decisao (modo `priority`):
 
 1. Tenta `SpotifyWidget`.
 2. Se Spotify nao estiver ativo, tenta `CustomGifWidget`.
-3. Se nenhum dos dois estiver ativo/disponivel, retorna `ClockWidget`.
+3. Se custom_gif nao estiver ativo/disponivel, tenta `VerticalImageWidget`.
+4. Se nenhum deles estiver ativo/disponivel, retorna `ClockWidget`.
 
 Observacao: esse fluxo pode mudar conforme o `display_mode` salvo em `/widgets/config`.
 
@@ -50,6 +52,10 @@ Edite `.env`:
 - `CUSTOM_GIF_STATE_PATH=data/custom_gifs_state.json`
 - `CUSTOM_GIF_UPLOAD_DIR=data/uploads`
 - `CUSTOM_GIF_MAX_UPLOAD_BYTES=8388608`
+- `VERTICAL_IMAGE_STATE_PATH=data/vertical_image_state.json`
+- `VERTICAL_IMAGE_UPLOAD_DIR=data/uploads/vertical_image`
+- `VERTICAL_IMAGE_MAX_UPLOAD_BYTES=8388608`
+- `VERTICAL_IMAGE_SCROLL_SPEED_PPS=14`
 - `DOORBELL_ALERT_DEFAULT_SECONDS=8`
 - `DOORBELL_ALERT_MAX_SECONDS=60`
 
@@ -349,8 +355,8 @@ Campos aceitos no `POST /widgets/config`:
 Comportamento de cada modo:
 
 - `priority` (padrao): usa prioridade normal (`spotify` -> `custom_gif` -> `clock`).
-- `custom_only`: tenta mostrar `custom_gif`; se indisponivel, cai para `spotify/clock` para nao deixar a tela vazia.
-- `hybrid`: a cada `hybrid_period_seconds`, tenta mostrar `custom_gif` por `hybrid_show_seconds`; fora dessa janela, usa `spotify/clock`.
+- `custom_only`: tenta mostrar `custom_gif`; se indisponivel, cai para `spotify/vertical_image/clock` para nao deixar a tela vazia.
+- `hybrid`: a cada `hybrid_period_seconds`, tenta mostrar `custom_gif` por `hybrid_show_seconds`; fora dessa janela, usa `spotify/vertical_image/clock`.
 
 Observacao:
 
@@ -390,9 +396,10 @@ Exemplo de leitura de configuracao:
   "widgets": [
     {"name": "spotify", "priority": 100, "role": "primary", "enabled": true},
     {"name": "custom_gif", "priority": 80, "role": "primary", "enabled": true},
+    {"name": "vertical_image", "priority": 70, "role": "primary", "enabled": true},
     {"name": "clock", "priority": 0, "role": "fallback", "enabled": true}
   ],
-  "enabled_widgets": ["clock", "custom_gif", "spotify"],
+  "enabled_widgets": ["clock", "custom_gif", "spotify", "vertical_image"],
   "display_mode": "hybrid",
   "hybrid_period_seconds": 300,
   "hybrid_show_seconds": 30,
@@ -444,6 +451,38 @@ Persistencia do custom_gif:
 - GIFs custom salvos em: `CUSTOM_GIF_UPLOAD_DIR/custom_gifs/`.
 - GIF da campainha salvo em: `CUSTOM_GIF_UPLOAD_DIR/doorbell_gif/`.
 - Limite de upload em bytes: `CUSTOM_GIF_MAX_UPLOAD_BYTES`.
+
+## Widget vertical_image (scroll de baixo para cima)
+
+Endpoints principais:
+
+- Estado atual: `GET /widgets/vertical-image`
+- Upload de imagem: `POST /widgets/vertical-image/upload` (multipart form com `file` e `active`)
+- Download da imagem configurada: `GET /widgets/vertical-image/raw`
+- Atualizar ativo/velocidade: `PATCH /widgets/vertical-image/config`
+- Remover imagem: `DELETE /widgets/vertical-image`
+
+Comportamento:
+
+- O upload normaliza a largura para 64px e preserva proporcao da altura.
+- O viewport 64x32 percorre a imagem de baixo para cima em loop.
+- Velocidade configuravel em `scroll_speed_pps` (pixels por segundo).
+
+Exemplo de upload:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/widgets/vertical-image/upload" \
+  -F "file=@/caminho/imagem_longa.png" \
+  -F "active=true"
+```
+
+Exemplo de update de velocidade:
+
+```bash
+curl -X PATCH "http://127.0.0.1:8000/widgets/vertical-image/config" \
+  -H "Content-Type: application/json" \
+  -d '{"scroll_speed_pps":14}'
+```
 
 ## Integracao Home Assistant (campainha Smart Life)
 
