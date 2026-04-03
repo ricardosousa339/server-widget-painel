@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import requests
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
@@ -39,7 +40,7 @@ class SpotifyWidget(BaseWidget):
 
         try:
             playing = client.current_user_playing_track()
-        except spotipy.SpotifyException:
+        except (spotipy.SpotifyException, requests.RequestException):
             return None
 
         if not playing or not playing.get("is_playing"):
@@ -95,7 +96,7 @@ class SpotifyWidget(BaseWidget):
 
         try:
             token_info = self._oauth_manager.refresh_access_token(self._refresh_token)
-        except spotipy.SpotifyException:
+        except (spotipy.SpotifyException, requests.RequestException):
             return
 
         self._access_token = token_info.get("access_token", self._access_token)

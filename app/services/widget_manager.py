@@ -239,7 +239,7 @@ class WidgetManager:
         for widget in self.primary_widgets:
             if widget.name not in enabled_widgets:
                 continue
-            payload = await widget.get_data(image_mode=image_mode)
+            payload = await self._safe_widget_payload(widget, image_mode=image_mode)
             if payload is not None:
                 return payload
 
@@ -256,7 +256,7 @@ class WidgetManager:
                 continue
             if widget.name not in enabled_widgets:
                 continue
-            payload = await widget.get_data(image_mode=image_mode)
+            payload = await self._safe_widget_payload(widget, image_mode=image_mode)
             if payload is not None:
                 return payload
 
@@ -276,7 +276,7 @@ class WidgetManager:
             return None
         if not ignore_enabled and widget_name not in enabled_widgets:
             return None
-        return await widget.get_data(image_mode=image_mode, **kwargs)
+        return await self._safe_widget_payload(widget, image_mode=image_mode, **kwargs)
 
     async def _spotify_payload_with_grace(
         self,
@@ -338,7 +338,19 @@ class WidgetManager:
     ) -> dict[str, Any] | None:
         if self.fallback_widget.name not in enabled_widgets:
             return None
-        return await self.fallback_widget.get_data(image_mode=image_mode)
+        return await self._safe_widget_payload(self.fallback_widget, image_mode=image_mode)
+
+    @staticmethod
+    async def _safe_widget_payload(
+        widget: BaseWidget,
+        *,
+        image_mode: ImageMode,
+        **kwargs: Any,
+    ) -> dict[str, Any] | None:
+        try:
+            return await widget.get_data(image_mode=image_mode, **kwargs)
+        except Exception:
+            return None
 
     @staticmethod
     def _none_payload() -> dict[str, Any]:

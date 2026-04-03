@@ -19,6 +19,12 @@ class FakeWidget:
         return self.result
 
 
+class ExplodingWidget(FakeWidget):
+    async def get_data(self, image_mode: str = "rgb565_base64", **kwargs: object):
+        self.calls.append({"image_mode": image_mode, **kwargs})
+        raise RuntimeError(f"boom:{self.name}")
+
+
 class FakeConfigStore:
     def __init__(self, state: dict[str, object]) -> None:
         self.state = state
@@ -299,6 +305,93 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(spotify_widget.calls), 2)
         self.assertEqual(len(vertical_widget.calls), 1)
         self.assertEqual(len(clock_widget.calls), 0)
+
+    async def test_primary_widget_exception_does_not_break_payload_selection(self) -> None:
+        spotify_widget = ExplodingWidget("spotify", 100, None)
+        custom_widget = FakeWidget("custom_gif", 80, make_custom_payload)
+        clock_widget = FakeWidget(
+            "clock",
+            0,
+            {
+                "widget": "clock",
+                "priority": 0,
+                "ts": 1234567890,
+                "data": {"time": "12:00"},
+            },
+        )
+        manager = WidgetManager(
+            primary_widgets=[spotify_widget, custom_widget],
+            fallback_widget=clock_widget,
+            config_store=FakeConfigStore(
+                {
+                    "enabled_widgets": ["spotify", "custom_gif", "clock"],
+                    "display_mode": "priority",
+                    "hybrid_period_seconds": 300,
+                    "hybrid_show_seconds": 30,
+                    "updated_at": 1,
+                }
+            ),
+        )
+
+        payload = await manager.get_screen_payload()
+
+        self.assertEqual(payload["widget"], "custom_gif")
+        self.assertEqual(len(spotify_widget.calls), 2)
+        self.assertEqual(len(custom_widget.calls), 1)
+
+    async def test_all_primary_exceptions_fall_back_to_clock(self) -> None:
+        spotify_widget = ExplodingWidget("spotify", 100, None)
+        custom_widget = ExplodingWidget("custom_gif", 80, None)
+        clock_widget = FakeWidget(
+            "clock",
+            0,
+            {
+                "widget": "clock",
+                "priority": 0,
+                "ts": 1234567890,
+                "data": {"time": "12:00"},
+            },
+        )
+        manager = WidgetManager(
+            primary_widgets=[spotify_widget, custom_widget],
+            fallback_widget=clock_widget,
+            config_store=FakeConfigStore(
+                {
+                    "enabled_widgets": ["spotify", "custom_gif", "clock"],
+                    "display_mode": "priority",
+                    "hybrid_period_seconds": 300,
+                    "hybrid_show_seconds": 30,
+                    "updated_at": 1,
+                }
+            ),
+        )
+
+        payload = await manager.get_screen_payload()
+
+        self.assertEqual(payload["widget"], "clock")
+        self.assertEqual(len(clock_widget.calls), 1)
+
+    async def test_fallback_exception_returns_none_payload(self) -> None:
+        spotify_widget = ExplodingWidget("spotify", 100, None)
+        custom_widget = ExplodingWidget("custom_gif", 80, None)
+        clock_widget = ExplodingWidget("clock", 0, None)
+        manager = WidgetManager(
+            primary_widgets=[spotify_widget, custom_widget],
+            fallback_widget=clock_widget,
+            config_store=FakeConfigStore(
+                {
+                    "enabled_widgets": ["spotify", "custom_gif", "clock"],
+                    "display_mode": "priority",
+                    "hybrid_period_seconds": 300,
+                    "hybrid_show_seconds": 30,
+                    "updated_at": 1,
+                }
+            ),
+        )
+
+        payload = await manager.get_screen_payload()
+
+        self.assertEqual(payload["widget"], "none")
 
 
 if __name__ == "__main__":
