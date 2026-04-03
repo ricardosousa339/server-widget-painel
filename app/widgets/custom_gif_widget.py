@@ -25,6 +25,7 @@ class CustomGifWidget(BaseWidget, GifStateMixin, GifProcessorMixin):
     SCHEMA_VERSION = 2
     KIND_CUSTOM = "custom"
     KIND_DOORBELL = "doorbell"
+    ACTIVE_ASSET_ROTATION_SLOT_MS = 5000
 
     def __init__(
         self,
@@ -383,22 +384,34 @@ class CustomGifWidget(BaseWidget, GifStateMixin, GifProcessorMixin):
         if normalized_kind == self.KIND_DOORBELL:
             doorbell_asset = state["doorbell_asset"]
             if isinstance(doorbell_asset, dict) and doorbell_asset.get("active", True):
-                cache = self._ensure_cache_for_asset(doorbell_asset)
+                try:
+                    cache = self._ensure_cache_for_asset(doorbell_asset)
+                except CustomGifWidgetError:
+                    if allow_fallback:
+                        fallback = self._resolve_custom_selection(
+                            state,
+                            asset_id=asset_id,
+                            playhead_ms=playhead_ms,
+                            allow_inactive_fallback=True,
+                            now_ms=now_ms,
+                        )
+                        if fallback is not None:
+                            fallback["requested_kind"] = self.KIND_DOORBELL
+                            return fallback
+                    return None
+
+                selected_playhead = self._normalize_playhead_ms(
+                    playhead_ms=playhead_ms,
+                    fallback_ms=0,
+                    total_duration_ms=cache.total_duration_ms,
+                )
                 return {
                     "asset": doorbell_asset,
                     "active_count": 1,
                     "selected_index": 0,
                     "cycle_total_ms": cache.total_duration_ms,
-                    "cycle_position_ms": self._normalize_playhead_ms(
-                        playhead_ms=playhead_ms,
-                        fallback_ms=0,
-                        total_duration_ms=cache.total_duration_ms,
-                    ),
-                    "playhead_ms": self._normalize_playhead_ms(
-                        playhead_ms=playhead_ms,
-                        fallback_ms=0,
-                        total_duration_ms=cache.total_duration_ms,
-                    ),
+                    "cycle_position_ms": selected_playhead,
+                    "playhead_ms": selected_playhead,
                 }
 
             if allow_fallback:
@@ -448,7 +461,10 @@ class CustomGifWidget(BaseWidget, GifStateMixin, GifProcessorMixin):
                 return None
 
             asset = assets[selected_index]
-            cache = self._ensure_cache_for_asset(asset)
+            try:
+                cache = self._ensure_cache_for_asset(asset)
+            except CustomGifWidgetError:
+                return None
             selected_playhead = self._normalize_playhead_ms(
                 playhead_ms=playhead_ms,
                 fallback_ms=0 if now_ms is None else now_ms,
@@ -456,7 +472,7 @@ class CustomGifWidget(BaseWidget, GifStateMixin, GifProcessorMixin):
             )
             return {
                 "asset": asset,
-                "active_count": sum(1 for item in assets if item.get("active", True)),
+                "active_count": 1,
                 "selected_index": selected_index,
                 "cycle_total_ms": cache.total_duration_ms,
                 "cycle_position_ms": selected_playhead,
@@ -465,7 +481,7 @@ class CustomGifWidget(BaseWidget, GifStateMixin, GifProcessorMixin):
 
         active_assets = [asset for asset in assets if bool(asset.get("active", True))]
         if not active_assets and allow_inactive_fallback:
-            active_assets = assets[:1]
+            active_assets = assets[:]
 
         if not active_assets:
             return None
@@ -478,42 +494,28 @@ class CustomGifWidget(BaseWidget, GifStateMixin, GifProcessorMixin):
                 str(asset.get("id") or ""),
             ),
         )
-
-        cycle_total_ms = 0
-        cache_by_id: dict[str, GifPlaybackCache] = {}
+        available_assets: list[tuple[dict[str, Any], GifPlaybackCache]] = []
         for asset in active_assets:
-            cache = self._ensure_cache_for_asset(asset)
-            cache_by_id[str(asset["id"])] = cache
-            cycle_total_ms += max(1, cache.total_duration_ms)
+            try:
+                cache = self._ensure_cache_for_asset(asset)
+            except CustomGifWidgetError:
+                continue
+            available_assets.append((asset, cache))
 
-        if cycle_total_ms <= 0:
+        if not available_assets:
             return None
 
+        slot_ms = max(1, self.ACTIVE_ASSET_ROTATION_SLOT_MS)
+        cycle_total_ms = slot_ms * len(available_assets)
         phase = (now_ms if now_ms is not None else int(time.time() * 1000)) % cycle_total_ms
-        elapsed = 0
-        for index, asset in enumerate(active_assets):
-            cache = cache_by_id[str(asset["id"])]
-            slot_duration = max(1, cache.total_duration_ms)
-            if phase < elapsed + slot_duration:
-                asset_phase_ms = phase - elapsed
-                return {
-                    "asset": asset,
-                    "active_count": len(active_assets),
-                    "selected_index": index,
-                    "cycle_total_ms": cycle_total_ms,
-                    "cycle_position_ms": phase,
-                    "playhead_ms": asset_phase_ms,
-                }
-            elapsed += slot_duration
+        selected_index = min(phase // slot_ms, len(available_assets) - 1)
+        asset, _cache = available_assets[selected_index]
+        asset_phase_ms = phase - (selected_index * slot_ms)
 
-        asset = active_assets[-1]
-        cache = cache_by_id[str(asset["id"])]
-        slot_duration = max(1, cache.total_duration_ms)
-        asset_phase_ms = max(0, phase - (cycle_total_ms - slot_duration))
         return {
             "asset": asset,
-            "active_count": len(active_assets),
-            "selected_index": len(active_assets) - 1,
+            "active_count": len(available_assets),
+            "selected_index": selected_index,
             "cycle_total_ms": cycle_total_ms,
             "cycle_position_ms": phase,
             "playhead_ms": asset_phase_ms,

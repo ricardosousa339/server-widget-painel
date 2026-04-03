@@ -13,6 +13,7 @@ class ClockWidget(BaseWidget):
 
     async def get_data(self, image_mode: ImageMode = "rgb565_base64") -> dict[str, Any]:
         now = datetime.now()
+        weekdays_pt = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
         return {
             "widget": self.name,
             "priority": self.priority,
@@ -21,6 +22,6 @@ class ClockWidget(BaseWidget):
                 "time": now.strftime("%H:%M"),
                 "seconds": now.strftime("%S"),
                 "date": now.strftime("%d/%m"),
-                "weekday": now.strftime("%a"),
+                "weekday": weekdays_pt[now.weekday()],
             },
         }

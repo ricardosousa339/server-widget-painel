@@ -1,13 +1,18 @@
 from typing import Any
 from pathlib import Path
-from PIL import Image, ImageOps, ImageSequence
-from app.services.image_service import ImageMode
-import json
 import base64
 import io
+import json
+import shutil
 import time
-from .models import GifPlaybackCache
+import uuid
+
+from PIL import Image, ImageOps, ImageSequence
+
+from app.services.image_service import ImageMode
+
 from .exceptions import CustomGifWidgetError
+from .models import GifPlaybackCache
 
 class GifStateMixin:
 
@@ -276,10 +281,13 @@ class GifProcessorMixin:
         if not file_path.exists():
             raise CustomGifWidgetError("GIF ausente")
 
-        mtime = file_path.stat().st_mtime
-        cached = self._cache_by_asset_id.get(asset_id)
-        if cached is not None and cached.mtime == mtime:
-            return cached
+        try:
+            mtime = file_path.stat().st_mtime
+            cached = self._cache_by_asset_id.get(asset_id)
+            if cached is not None and cached.mtime == mtime:
+                return cached
+        except OSError:
+            raise CustomGifWidgetError("Erro ao acessar o arquivo GIF")
 
         cache = self._build_cache_from_file(file_path)
         self._cache_by_asset_id[asset_id] = cache
