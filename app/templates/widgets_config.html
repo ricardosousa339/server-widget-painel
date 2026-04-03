@@ -2051,7 +2051,7 @@
       return {
         display_mode: displayMode,
         hybrid_period_seconds: hybridPeriodSeconds,
-        hybrid_show_seconds: hybridShowSeconds,
+        default_gif_duration_seconds: hybridShowSeconds,
       };
     }
 
@@ -2314,7 +2314,7 @@
         86400
       );
       const configHybridShow = sanitizeInt(
-        config?.hybrid_show_seconds,
+        config?.default_gif_duration_seconds,
         DEFAULT_HYBRID_SHOW_SECONDS,
         1,
         3600
@@ -2381,7 +2381,7 @@
           enabled_widgets: enabledWidgets,
           display_mode: modeConfig.display_mode,
           hybrid_period_seconds: modeConfig.hybrid_period_seconds,
-          hybrid_show_seconds: modeConfig.hybrid_show_seconds,
+          default_gif_duration_seconds: modeConfig.default_gif_duration_seconds,
         }),
       });
 

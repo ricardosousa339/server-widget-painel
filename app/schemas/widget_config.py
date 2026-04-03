@@ -12,7 +12,7 @@ class WidgetConfigUpdate(BaseModel):
     enabled_widgets: list[str] | None = Field(default=None)
     display_mode: str | None = Field(default=None)
     hybrid_period_seconds: int | None = Field(default=None, ge=10, le=86400)
-    hybrid_show_seconds: int | None = Field(default=None, ge=1, le=3600)
+    default_gif_duration_seconds: int | None = Field(default=None, ge=1, le=3600)
 
     def normalized_enabled_widgets(self) -> list[str] | None:
         if self.enabled_widgets is None:
@@ -33,10 +33,10 @@ class WidgetConfigUpdate(BaseModel):
             return None
         return int(self.hybrid_period_seconds)
 
-    def normalized_hybrid_show_seconds(self) -> int | None:
-        if self.hybrid_show_seconds is None:
+    def normalized_default_gif_duration_seconds(self) -> int | None:
+        if self.default_gif_duration_seconds is None:
             return None
-        return int(self.hybrid_show_seconds)
+        return int(self.default_gif_duration_seconds)
 
 
 def _normalize_widget_names(values: Iterable[str]) -> list[str]:

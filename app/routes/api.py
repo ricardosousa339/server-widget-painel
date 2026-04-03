@@ -101,7 +101,7 @@ def update_widgets_config(update: WidgetConfigUpdate) -> dict[str, Any]:
         enabled_widgets=update.normalized_enabled_widgets(),
         display_mode=update.normalized_display_mode(),
         hybrid_period_seconds=update.normalized_hybrid_period_seconds(),
-        hybrid_show_seconds=update.normalized_hybrid_show_seconds(),
+        default_gif_duration_seconds=update.normalized_default_gif_duration_seconds(),
     )
 
 

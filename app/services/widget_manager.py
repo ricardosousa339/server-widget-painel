@@ -99,13 +99,30 @@ class WidgetManager:
 
         if display_mode == "hybrid":
             if self._is_hybrid_custom_window(display_config):
-                custom_payload = await self._payload_for_widget(
-                    self.CUSTOM_WIDGET_NAME,
-                    enabled_widgets=enabled_widgets,
-                    image_mode=image_mode,
-                )
-                if custom_payload is not None:
-                    return custom_payload
+                custom_widgets = []
+                if "vertical_image" in enabled_widgets:
+                    custom_widgets.append("vertical_image")
+                if self.CUSTOM_WIDGET_NAME in enabled_widgets:
+                    custom_widgets.append(self.CUSTOM_WIDGET_NAME)
+                
+                if custom_widgets:
+                    show_seconds = int(display_config.get("default_gif_duration_seconds") or 0)
+                    if show_seconds > 0:
+                        total_custom = len(custom_widgets)
+                        now_seconds = int(time.time())
+                        period = int(display_config.get("hybrid_period_seconds") or 0)
+                        
+                        if period > 0:
+                            cycle_idx = (now_seconds // period) % total_custom
+                            target_widget = custom_widgets[cycle_idx]
+                            
+                            custom_payload = await self._payload_for_widget(
+                                target_widget,
+                                enabled_widgets=enabled_widgets,
+                                image_mode=image_mode,
+                            )
+                            if custom_payload is not None:
+                                return custom_payload
 
             payload = await self._payload_without_custom(enabled_widgets, image_mode=image_mode)
             if payload is not None:
@@ -141,7 +158,7 @@ class WidgetManager:
             "enabled_widgets": sorted(enabled_widgets),
             "display_mode": display_config["display_mode"],
             "hybrid_period_seconds": display_config["hybrid_period_seconds"],
-            "hybrid_show_seconds": display_config["hybrid_show_seconds"],
+            "default_gif_duration_seconds": display_config["default_gif_duration_seconds"],
             "updated_at": updated_at,
         }
 
@@ -158,7 +175,7 @@ class WidgetManager:
         enabled_widgets: Iterable[str] | None = None,
         display_mode: str | None = None,
         hybrid_period_seconds: int | None = None,
-        hybrid_show_seconds: int | None = None,
+        default_gif_duration_seconds: int | None = None,
     ) -> dict[str, Any]:
         if self.config_store is None:
             return self.get_widgets_config()
@@ -167,7 +184,7 @@ class WidgetManager:
             enabled_widgets=enabled_widgets,
             display_mode=display_mode,
             hybrid_period_seconds=hybrid_period_seconds,
-            hybrid_show_seconds=hybrid_show_seconds,
+            default_gif_duration_seconds=default_gif_duration_seconds,
         )
         return self.get_widgets_config()
 
@@ -252,7 +269,7 @@ class WidgetManager:
         image_mode: ImageMode,
     ) -> dict[str, Any] | None:
         for widget in self.primary_widgets:
-            if widget.name == self.CUSTOM_WIDGET_NAME:
+            if widget.name in [self.CUSTOM_WIDGET_NAME, "vertical_image"]:
                 continue
             if widget.name not in enabled_widgets:
                 continue
@@ -366,7 +383,7 @@ class WidgetManager:
             return {
                 "display_mode": WidgetConfigStore.DEFAULT_DISPLAY_MODE,
                 "hybrid_period_seconds": WidgetConfigStore.DEFAULT_HYBRID_PERIOD_SECONDS,
-                "hybrid_show_seconds": WidgetConfigStore.DEFAULT_HYBRID_SHOW_SECONDS,
+                "default_gif_duration_seconds": WidgetConfigStore.DEFAULT_HYBRID_SHOW_SECONDS,
             }
 
         state = self.config_store.get_state()
@@ -376,8 +393,8 @@ class WidgetManager:
                 state.get("hybrid_period_seconds")
                 or WidgetConfigStore.DEFAULT_HYBRID_PERIOD_SECONDS
             ),
-            "hybrid_show_seconds": int(
-                state.get("hybrid_show_seconds")
+            "default_gif_duration_seconds": int(
+                state.get("default_gif_duration_seconds")
                 or WidgetConfigStore.DEFAULT_HYBRID_SHOW_SECONDS
             ),
         }
@@ -385,7 +402,7 @@ class WidgetManager:
     @staticmethod
     def _is_hybrid_custom_window(display_config: dict[str, int | str]) -> bool:
         period = int(display_config.get("hybrid_period_seconds") or 0)
-        show_seconds = int(display_config.get("hybrid_show_seconds") or 0)
+        show_seconds = int(display_config.get("default_gif_duration_seconds") or 0)
         if period <= 0 or show_seconds <= 0:
             return False
 

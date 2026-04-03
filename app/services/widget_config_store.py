@@ -9,11 +9,11 @@ from typing import Any, Iterable
 class WidgetConfigStore:
     DEFAULT_DISPLAY_MODE = "priority"
     DEFAULT_HYBRID_PERIOD_SECONDS = 300
-    DEFAULT_HYBRID_SHOW_SECONDS = 30
+    DEFAULT_DEFAULT_GIF_DURATION_SECONDS = 30
     MIN_HYBRID_PERIOD_SECONDS = 10
     MAX_HYBRID_PERIOD_SECONDS = 86400
-    MIN_HYBRID_SHOW_SECONDS = 1
-    MAX_HYBRID_SHOW_SECONDS = 3600
+    MIN_DEFAULT_GIF_DURATION_SECONDS = 1
+    MAX_DEFAULT_GIF_DURATION_SECONDS = 3600
     ALLOWED_DISPLAY_MODES = {"priority", "custom_only", "hybrid"}
 
     def __init__(self, state_path: Path, available_widgets: Iterable[str]) -> None:
@@ -28,7 +28,7 @@ class WidgetConfigStore:
             "enabled_widgets": list(state["enabled_widgets"]),
             "display_mode": state["display_mode"],
             "hybrid_period_seconds": state["hybrid_period_seconds"],
-            "hybrid_show_seconds": state["hybrid_show_seconds"],
+            "default_gif_duration_seconds": state["default_gif_duration_seconds"],
             "updated_at": state["updated_at"],
         }
 
@@ -41,7 +41,7 @@ class WidgetConfigStore:
         enabled_widgets: Iterable[str] | None = None,
         display_mode: str | None = None,
         hybrid_period_seconds: int | None = None,
-        hybrid_show_seconds: int | None = None,
+        default_gif_duration_seconds: int | None = None,
     ) -> dict[str, Any]:
         current = self._normalize_state(self._read_state())
 
@@ -61,15 +61,15 @@ class WidgetConfigStore:
             max_value=self.MAX_HYBRID_PERIOD_SECONDS,
         )
         normalized_show = self._normalize_int(
-            hybrid_show_seconds,
-            default=current["hybrid_show_seconds"],
-            min_value=self.MIN_HYBRID_SHOW_SECONDS,
-            max_value=self.MAX_HYBRID_SHOW_SECONDS,
+            default_gif_duration_seconds,
+            default=current["default_gif_duration_seconds"],
+            min_value=self.MIN_DEFAULT_GIF_DURATION_SECONDS,
+            max_value=self.MAX_DEFAULT_GIF_DURATION_SECONDS,
         )
 
         if normalized_show >= normalized_period:
             normalized_show = max(
-                self.MIN_HYBRID_SHOW_SECONDS,
+                self.MIN_DEFAULT_GIF_DURATION_SECONDS,
                 normalized_period - 1,
             )
 
@@ -77,7 +77,7 @@ class WidgetConfigStore:
             "enabled_widgets": valid_enabled,
             "display_mode": normalized_mode,
             "hybrid_period_seconds": normalized_period,
-            "hybrid_show_seconds": normalized_show,
+            "default_gif_duration_seconds": normalized_show,
             "updated_at": int(time.time()),
         }
         self._write_state(state)
@@ -91,7 +91,7 @@ class WidgetConfigStore:
             "enabled_widgets": list(self.available_widgets),
             "display_mode": self.DEFAULT_DISPLAY_MODE,
             "hybrid_period_seconds": self.DEFAULT_HYBRID_PERIOD_SECONDS,
-            "hybrid_show_seconds": self.DEFAULT_HYBRID_SHOW_SECONDS,
+            "default_gif_duration_seconds": self.DEFAULT_DEFAULT_GIF_DURATION_SECONDS,
             "updated_at": int(time.time()),
         }
 
@@ -142,16 +142,16 @@ class WidgetConfigStore:
             min_value=self.MIN_HYBRID_PERIOD_SECONDS,
             max_value=self.MAX_HYBRID_PERIOD_SECONDS,
         )
-        hybrid_show_seconds = self._normalize_int(
-            state.get("hybrid_show_seconds"),
-            default=self.DEFAULT_HYBRID_SHOW_SECONDS,
-            min_value=self.MIN_HYBRID_SHOW_SECONDS,
-            max_value=self.MAX_HYBRID_SHOW_SECONDS,
+        default_gif_duration_seconds = self._normalize_int(
+            state.get("default_gif_duration_seconds"),
+            default=self.DEFAULT_DEFAULT_GIF_DURATION_SECONDS,
+            min_value=self.MIN_DEFAULT_GIF_DURATION_SECONDS,
+            max_value=self.MAX_DEFAULT_GIF_DURATION_SECONDS,
         )
 
-        if hybrid_show_seconds >= hybrid_period_seconds:
-            hybrid_show_seconds = max(
-                self.MIN_HYBRID_SHOW_SECONDS,
+        if default_gif_duration_seconds >= hybrid_period_seconds:
+            default_gif_duration_seconds = max(
+                self.MIN_DEFAULT_GIF_DURATION_SECONDS,
                 hybrid_period_seconds - 1,
             )
 
@@ -159,7 +159,7 @@ class WidgetConfigStore:
             "enabled_widgets": enabled,
             "display_mode": display_mode,
             "hybrid_period_seconds": hybrid_period_seconds,
-            "hybrid_show_seconds": hybrid_show_seconds,
+            "default_gif_duration_seconds": default_gif_duration_seconds,
             "updated_at": updated_at,
         }
 
