@@ -9,11 +9,11 @@ from typing import Any, Iterable
 class WidgetConfigStore:
     DEFAULT_DISPLAY_MODE = "priority"
     DEFAULT_HYBRID_PERIOD_SECONDS = 300
-    DEFAULT_DEFAULT_GIF_DURATION_SECONDS = 30
+    DEFAULT_GIF_DURATION_SECONDS = 30
     MIN_HYBRID_PERIOD_SECONDS = 10
     MAX_HYBRID_PERIOD_SECONDS = 86400
-    MIN_DEFAULT_GIF_DURATION_SECONDS = 1
-    MAX_DEFAULT_GIF_DURATION_SECONDS = 3600
+    MIN_GIF_DURATION_SECONDS = 1
+    MAX_GIF_DURATION_SECONDS = 3600
     ALLOWED_DISPLAY_MODES = {"priority", "custom_only", "hybrid"}
 
     def __init__(self, state_path: Path, available_widgets: Iterable[str]) -> None:
@@ -63,13 +63,13 @@ class WidgetConfigStore:
         normalized_show = self._normalize_int(
             default_gif_duration_seconds,
             default=current["default_gif_duration_seconds"],
-            min_value=self.MIN_DEFAULT_GIF_DURATION_SECONDS,
-            max_value=self.MAX_DEFAULT_GIF_DURATION_SECONDS,
+            min_value=self.MIN_GIF_DURATION_SECONDS,
+            max_value=self.MAX_GIF_DURATION_SECONDS,
         )
 
         if normalized_show >= normalized_period:
             normalized_show = max(
-                self.MIN_DEFAULT_GIF_DURATION_SECONDS,
+                self.MIN_GIF_DURATION_SECONDS,
                 normalized_period - 1,
             )
 
@@ -91,7 +91,7 @@ class WidgetConfigStore:
             "enabled_widgets": list(self.available_widgets),
             "display_mode": self.DEFAULT_DISPLAY_MODE,
             "hybrid_period_seconds": self.DEFAULT_HYBRID_PERIOD_SECONDS,
-            "default_gif_duration_seconds": self.DEFAULT_DEFAULT_GIF_DURATION_SECONDS,
+            "default_gif_duration_seconds": self.DEFAULT_GIF_DURATION_SECONDS,
             "updated_at": int(time.time()),
         }
 
@@ -144,14 +144,14 @@ class WidgetConfigStore:
         )
         default_gif_duration_seconds = self._normalize_int(
             state.get("default_gif_duration_seconds"),
-            default=self.DEFAULT_DEFAULT_GIF_DURATION_SECONDS,
-            min_value=self.MIN_DEFAULT_GIF_DURATION_SECONDS,
-            max_value=self.MAX_DEFAULT_GIF_DURATION_SECONDS,
+            default=self.DEFAULT_GIF_DURATION_SECONDS,
+            min_value=self.MIN_GIF_DURATION_SECONDS,
+            max_value=self.MAX_GIF_DURATION_SECONDS,
         )
 
         if default_gif_duration_seconds >= hybrid_period_seconds:
             default_gif_duration_seconds = max(
-                self.MIN_DEFAULT_GIF_DURATION_SECONDS,
+                self.MIN_GIF_DURATION_SECONDS,
                 hybrid_period_seconds - 1,
             )
 

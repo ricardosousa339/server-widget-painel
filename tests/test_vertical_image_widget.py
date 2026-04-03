@@ -37,99 +37,114 @@ class VerticalImageWidgetTests(unittest.IsolatedAsyncioTestCase):
     def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    async def test_save_image_normalizes_width_and_exposes_state(self) -> None:
-        raw = make_png_bytes(width=32, height=96, color=(255, 80, 20))
-
-        state = self.widget.save_image(
-            filename="poster.png",
+    async def test_save_image_creates_library_with_multiple_assets(self) -> None:
+        state_a = self.widget.save_image(
+            filename="a.png",
             content_type="image/png",
-            raw_bytes=raw,
+            raw_bytes=make_png_bytes(width=32, height=96, color=(255, 80, 20)),
+            active=True,
+        )
+        state_b = self.widget.save_image(
+            filename="b.png",
+            content_type="image/png",
+            raw_bytes=make_png_bytes(width=48, height=64, color=(20, 180, 220)),
             active=True,
         )
 
-        asset = state["asset"]
-        self.assertIsNotNone(asset)
-        self.assertEqual(asset["width"], 64)
-        self.assertEqual(asset["height"], 192)
-        self.assertTrue(asset["available"])
-        self.assertTrue(state["configured"])
-        self.assertEqual(state["scroll_speed_pps"], 14)
-        self.assertEqual(state["scroll_direction"], "up")
+        self.assertEqual(len(state_a["assets"]), 1)
+        self.assertEqual(len(state_b["assets"]), 2)
+        self.assertEqual(state_b["active_count"], 2)
+        self.assertTrue(state_b["configured"])
+        self.assertEqual(state_b["scroll_speed_pps"], 14)
+        self.assertEqual(state_b["scroll_direction"], "up")
 
-    async def test_get_data_returns_rgb565_frame_payload_when_active(self) -> None:
-        raw = make_png_bytes(width=64, height=120, color=(40, 180, 220))
+    async def test_get_data_rotates_between_active_assets(self) -> None:
         self.widget.save_image(
-            filename="long.png",
+            filename="a.png",
             content_type="image/png",
-            raw_bytes=raw,
+            raw_bytes=make_png_bytes(width=64, height=120, color=(40, 180, 220)),
+            active=True,
+        )
+        state = self.widget.save_image(
+            filename="b.png",
+            content_type="image/png",
+            raw_bytes=make_png_bytes(width=64, height=140, color=(90, 60, 180)),
             active=True,
         )
 
-        payload = await self.widget.get_data(image_mode="rgb565_base64")
+        assets = state["assets"]
+        self.assertEqual(len(assets), 2)
 
-        self.assertIsNotNone(payload)
-        self.assertEqual(payload["widget"], "vertical_image")
-        frame = payload["data"]["frame"]
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=1.0):
+            payload_a = await self.widget.get_data(image_mode="rgb565_base64")
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=6.0):
+            payload_b = await self.widget.get_data(image_mode="rgb565_base64")
+
+        self.assertIsNotNone(payload_a)
+        self.assertIsNotNone(payload_b)
+        self.assertEqual(payload_a["widget"], "custom_gif")
+        self.assertEqual(payload_b["widget"], "custom_gif")
+        self.assertNotEqual(payload_a["data"]["asset_id"], payload_b["data"]["asset_id"])
+
+        frame = payload_a["data"]["frame"]
         self.assertEqual(frame["enc"], "rgb565_base64")
         self.assertEqual(frame["w"], 64)
         self.assertEqual(frame["h"], 32)
 
         decoded = base64.b64decode(frame["data"])
         self.assertEqual(len(decoded), 64 * 32 * 2)
-        self.assertGreaterEqual(payload["data"]["scroll_progress_px"], 0)
-        self.assertGreaterEqual(payload["data"]["scroll_range_px"], 0)
 
-    async def test_get_data_respects_scroll_direction(self) -> None:
-        raw = make_png_bytes(width=32, height=96, color=(90, 60, 180))
-        self.widget.save_image(
-            filename="direction.png",
+    async def test_update_asset_active_and_fallback_behavior(self) -> None:
+        state = self.widget.save_image(
+            filename="a.png",
             content_type="image/png",
-            raw_bytes=raw,
+            raw_bytes=make_png_bytes(width=64, height=100, color=(100, 10, 10)),
+            active=True,
+        )
+        state = self.widget.save_image(
+            filename="b.png",
+            content_type="image/png",
+            raw_bytes=make_png_bytes(width=64, height=100, color=(0, 220, 0)),
             active=True,
         )
 
-        self.widget.update_config(scroll_direction="down")
+        first_id = state["assets"][0]["id"]
+        second_id = state["assets"][1]["id"]
+
+        self.widget.update_asset(first_id, active=False)
         with patch("app.widgets.vertical_image_widget.time.time", return_value=1.0):
-            down_payload = await self.widget.get_data(image_mode="rgb565_base64")
+            payload = await self.widget.get_data()
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload["data"]["asset_id"], second_id)
 
-        self.assertIsNotNone(down_payload)
-        self.assertEqual(down_payload["data"]["scroll_direction"], "down")
-        self.assertEqual(down_payload["data"]["scroll_progress_px"], 14)
-        self.assertEqual(down_payload["data"]["window_start_y"], 14)
-
-        self.widget.update_config(scroll_direction="up")
+        self.widget.update_asset(second_id, active=False)
         with patch("app.widgets.vertical_image_widget.time.time", return_value=1.0):
-            up_payload = await self.widget.get_data(image_mode="rgb565_base64")
+            none_payload = await self.widget.get_data()
+        self.assertIsNone(none_payload)
 
-        self.assertIsNotNone(up_payload)
-        self.assertEqual(up_payload["data"]["scroll_direction"], "up")
-        self.assertEqual(up_payload["data"]["scroll_progress_px"], 14)
-        self.assertEqual(up_payload["data"]["window_start_y"], 146)
-
-    async def test_get_data_returns_none_when_asset_inactive(self) -> None:
-        raw = make_png_bytes(width=64, height=80, color=(100, 10, 10))
-        self.widget.save_image(
-            filename="inactive.png",
+    async def test_delete_asset_and_clear_image(self) -> None:
+        state = self.widget.save_image(
+            filename="a.png",
             content_type="image/png",
-            raw_bytes=raw,
-            active=False,
-        )
-
-        payload = await self.widget.get_data()
-        self.assertIsNone(payload)
-
-    async def test_clear_image_removes_asset(self) -> None:
-        raw = make_png_bytes(width=64, height=80, color=(0, 220, 0))
-        saved_state = self.widget.save_image(
-            filename="remove.png",
-            content_type="image/png",
-            raw_bytes=raw,
+            raw_bytes=make_png_bytes(width=64, height=80, color=(120, 120, 120)),
             active=True,
         )
-        self.assertIsNotNone(saved_state["asset"])
+        state = self.widget.save_image(
+            filename="b.png",
+            content_type="image/png",
+            raw_bytes=make_png_bytes(width=64, height=80, color=(220, 120, 20)),
+            active=True,
+        )
+
+        first_id = state["assets"][0]["id"]
+        second_id = state["assets"][1]["id"]
+
+        after_delete = self.widget.delete_asset(first_id)
+        self.assertEqual(len(after_delete["assets"]), 1)
+        self.assertEqual(after_delete["assets"][0]["id"], second_id)
 
         cleared = self.widget.clear_image()
-        self.assertIsNone(cleared["asset"])
+        self.assertEqual(cleared["assets"], [])
         self.assertFalse(cleared["configured"])
         self.assertIsNone(self.widget.raw_file_path())
 

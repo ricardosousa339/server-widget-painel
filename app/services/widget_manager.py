@@ -11,6 +11,7 @@ from app.widgets.base import BaseWidget
 
 class WidgetManager:
     CUSTOM_WIDGET_NAME = "custom_gif"
+    VERTICAL_WIDGET_NAME = "vertical_image"
 
     def __init__(
         self,
@@ -84,47 +85,43 @@ class WidgetManager:
         display_mode = display_config["display_mode"]
 
         if display_mode == "custom_only":
-            custom_payload = await self._payload_for_widget(
-                self.CUSTOM_WIDGET_NAME,
-                enabled_widgets=enabled_widgets,
+            media_payload = await self._payload_for_media_schedule(
+                enabled_widgets,
                 image_mode=image_mode,
+                display_config=display_config,
+                force_media_only=True,
             )
-            if custom_payload is not None:
-                return custom_payload
+            if media_payload is not None:
+                return media_payload
 
-            payload = await self._payload_without_custom(enabled_widgets, image_mode=image_mode)
+            payload = await self._payload_without_widgets(
+                enabled_widgets,
+                image_mode=image_mode,
+                excluded_widgets={self.CUSTOM_WIDGET_NAME, self.VERTICAL_WIDGET_NAME},
+            )
             if payload is not None:
                 return payload
             return self._none_payload()
 
-        if display_mode == "hybrid":
-            if self._is_hybrid_custom_window(display_config):
-                custom_widgets = []
-                if "vertical_image" in enabled_widgets:
-                    custom_widgets.append("vertical_image")
-                if self.CUSTOM_WIDGET_NAME in enabled_widgets:
-                    custom_widgets.append(self.CUSTOM_WIDGET_NAME)
-                
-                if custom_widgets:
-                    show_seconds = int(display_config.get("default_gif_duration_seconds") or 0)
-                    if show_seconds > 0:
-                        total_custom = len(custom_widgets)
-                        now_seconds = int(time.time())
-                        period = int(display_config.get("hybrid_period_seconds") or 0)
-                        
-                        if period > 0:
-                            cycle_idx = (now_seconds // period) % total_custom
-                            target_widget = custom_widgets[cycle_idx]
-                            
-                            custom_payload = await self._payload_for_widget(
-                                target_widget,
-                                enabled_widgets=enabled_widgets,
-                                image_mode=image_mode,
-                            )
-                            if custom_payload is not None:
-                                return custom_payload
+        if display_mode in {"priority", "hybrid"}:
+            media_payload = await self._payload_for_media_schedule(
+                enabled_widgets,
+                image_mode=image_mode,
+                display_config=display_config,
+            )
+            if media_payload is not None:
+                return media_payload
 
-            payload = await self._payload_without_custom(enabled_widgets, image_mode=image_mode)
+            # Clock is the default when media is outside the active playback window.
+            fallback_payload = await self._fallback_payload(enabled_widgets, image_mode=image_mode)
+            if fallback_payload is not None:
+                return fallback_payload
+
+            payload = await self._payload_without_widgets(
+                enabled_widgets,
+                image_mode=image_mode,
+                excluded_widgets={self.CUSTOM_WIDGET_NAME, self.VERTICAL_WIDGET_NAME},
+            )
             if payload is not None:
                 return payload
             return self._none_payload()
@@ -262,22 +259,72 @@ class WidgetManager:
 
         return await self._fallback_payload(enabled_widgets, image_mode=image_mode)
 
-    async def _payload_without_custom(
+    async def _payload_without_widgets(
         self,
         enabled_widgets: set[str],
         *,
         image_mode: ImageMode,
+        excluded_widgets: set[str] | None = None,
     ) -> dict[str, Any] | None:
+        excluded = excluded_widgets or set()
         for widget in self.primary_widgets:
-            if widget.name in [self.CUSTOM_WIDGET_NAME, "vertical_image"]:
+            if widget.name in excluded:
                 continue
             if widget.name not in enabled_widgets:
                 continue
             payload = await self._safe_widget_payload(widget, image_mode=image_mode)
             if payload is not None:
                 return payload
-
         return await self._fallback_payload(enabled_widgets, image_mode=image_mode)
+
+    async def _payload_for_media_schedule(
+        self,
+        enabled_widgets: set[str],
+        *,
+        image_mode: ImageMode,
+        display_config: dict[str, int | str],
+        force_media_only: bool = False,
+    ) -> dict[str, Any] | None:
+        media_widgets = [
+            widget_name
+            for widget_name in (self.CUSTOM_WIDGET_NAME, self.VERTICAL_WIDGET_NAME)
+            if widget_name in enabled_widgets
+        ]
+        if not media_widgets:
+            return None
+
+        show_seconds = int(display_config.get("default_gif_duration_seconds") or 0)
+        if show_seconds <= 0:
+            return None
+
+        period_seconds = 0 if force_media_only else int(display_config.get("hybrid_period_seconds") or 0)
+        if period_seconds < 0:
+            period_seconds = 0
+
+        media_window_seconds = show_seconds * len(media_widgets)
+        cycle_seconds = period_seconds + media_window_seconds
+        if cycle_seconds <= 0:
+            return None
+
+        now_seconds = int(time.time())
+        phase_seconds = now_seconds % cycle_seconds
+        if phase_seconds < period_seconds:
+            return None
+
+        media_phase_seconds = phase_seconds - period_seconds
+        start_index = min(media_phase_seconds // show_seconds, len(media_widgets) - 1)
+        scheduled_widgets = media_widgets[start_index:] + media_widgets[:start_index]
+
+        for widget_name in scheduled_widgets:
+            payload = await self._payload_for_widget(
+                widget_name,
+                enabled_widgets=enabled_widgets,
+                image_mode=image_mode,
+            )
+            if payload is not None:
+                return payload
+
+        return None
 
     async def _payload_for_widget(
         self,
@@ -383,7 +430,7 @@ class WidgetManager:
             return {
                 "display_mode": WidgetConfigStore.DEFAULT_DISPLAY_MODE,
                 "hybrid_period_seconds": WidgetConfigStore.DEFAULT_HYBRID_PERIOD_SECONDS,
-                "default_gif_duration_seconds": WidgetConfigStore.DEFAULT_HYBRID_SHOW_SECONDS,
+                "default_gif_duration_seconds": WidgetConfigStore.DEFAULT_GIF_DURATION_SECONDS,
             }
 
         state = self.config_store.get_state()
@@ -395,7 +442,7 @@ class WidgetManager:
             ),
             "default_gif_duration_seconds": int(
                 state.get("default_gif_duration_seconds")
-                or WidgetConfigStore.DEFAULT_HYBRID_SHOW_SECONDS
+                or WidgetConfigStore.DEFAULT_GIF_DURATION_SECONDS
             ),
         }
 

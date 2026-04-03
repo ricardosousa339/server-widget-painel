@@ -1,11 +1,12 @@
 from .doorbell import DoorbellTriggerRequest
 from .widget_config import WidgetConfigUpdate
 from .custom_gif import CustomGifAssetUpdateRequest
-from .vertical_image import VerticalImageUpdateRequest
+from .vertical_image import VerticalImageAssetUpdateRequest, VerticalImageUpdateRequest
 
 __all__ = [
     "WidgetConfigUpdate",
     "DoorbellTriggerRequest",
     "CustomGifAssetUpdateRequest",
     "VerticalImageUpdateRequest",
+    "VerticalImageAssetUpdateRequest",
 ]

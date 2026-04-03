@@ -20,6 +20,7 @@ from app.dependencies import (
 from app.schemas import (
     CustomGifAssetUpdateRequest,
     DoorbellTriggerRequest,
+    VerticalImageAssetUpdateRequest,
     VerticalImageUpdateRequest,
     WidgetConfigUpdate,
 )
@@ -234,6 +235,25 @@ def update_vertical_image_config(update: VerticalImageUpdateRequest) -> dict[str
         )
     except VerticalImageWidgetError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch("/widgets/vertical-image/{asset_id}")
+def update_vertical_image_asset(
+    asset_id: str,
+    update: VerticalImageAssetUpdateRequest,
+) -> dict[str, Any]:
+    try:
+        return vertical_image_widget.update_asset(asset_id, active=update.active)
+    except VerticalImageWidgetError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/widgets/vertical-image/{asset_id}")
+def delete_vertical_image_asset(asset_id: str) -> dict[str, Any]:
+    try:
+        return vertical_image_widget.delete_asset(asset_id)
+    except VerticalImageWidgetError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.delete("/widgets/vertical-image")

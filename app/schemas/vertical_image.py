@@ -19,3 +19,7 @@ class VerticalImageUpdateRequest(BaseModel):
         if self.scroll_direction is None:
             return None
         return str(self.scroll_direction)
+
+
+class VerticalImageAssetUpdateRequest(BaseModel):
+    active: bool | None = None

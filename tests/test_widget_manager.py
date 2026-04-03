@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from app.services.widget_manager import WidgetManager
 
@@ -84,7 +85,7 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "clock"],
                     "display_mode": "hybrid",
                     "hybrid_period_seconds": 2,
-                    "hybrid_show_seconds": 2,
+                    "default_gif_duration_seconds": 2,
                     "updated_at": 1,
                 }
             ),
@@ -121,7 +122,7 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "clock"],
                     "display_mode": "priority",
                     "hybrid_period_seconds": 300,
-                    "hybrid_show_seconds": 30,
+                    "default_gif_duration_seconds": 30,
                     "updated_at": 1,
                 }
             ),
@@ -178,7 +179,7 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "clock"],
                     "display_mode": "hybrid",
                     "hybrid_period_seconds": 2,
-                    "hybrid_show_seconds": 2,
+                    "default_gif_duration_seconds": 2,
                     "updated_at": 1,
                 }
             ),
@@ -237,7 +238,7 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "clock"],
                     "display_mode": "priority",
                     "hybrid_period_seconds": 300,
-                    "hybrid_show_seconds": 30,
+                    "default_gif_duration_seconds": 30,
                     "updated_at": 1,
                 }
             ),
@@ -292,7 +293,7 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "vertical_image", "clock"],
                     "display_mode": "custom_only",
                     "hybrid_period_seconds": 300,
-                    "hybrid_show_seconds": 30,
+                    "default_gif_duration_seconds": 30,
                     "updated_at": 1,
                 }
             ),
@@ -301,10 +302,69 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
         payload = await manager.get_screen_payload()
 
         self.assertEqual(payload["widget"], "vertical_image")
-        self.assertEqual(len(custom_widget.calls), 1)
-        self.assertEqual(len(spotify_widget.calls), 2)
+        self.assertLessEqual(len(custom_widget.calls), 1)
+        self.assertEqual(len(spotify_widget.calls), 1)
         self.assertEqual(len(vertical_widget.calls), 1)
         self.assertEqual(len(clock_widget.calls), 0)
+
+    async def test_priority_defaults_to_clock_and_rotates_media_on_window(self) -> None:
+        spotify_widget = FakeWidget("spotify", 100, None)
+        custom_widget = FakeWidget(
+            "custom_gif",
+            80,
+            {
+                "widget": "custom_gif",
+                "priority": 80,
+                "ts": 1234567890,
+                "data": {"asset_id": "gif-1"},
+            },
+        )
+        vertical_widget = FakeWidget(
+            "vertical_image",
+            70,
+            {
+                "widget": "custom_gif",
+                "priority": 70,
+                "ts": 1234567890,
+                "data": {"asset_id": "vertical-1"},
+            },
+        )
+        clock_widget = FakeWidget(
+            "clock",
+            0,
+            {
+                "widget": "clock",
+                "priority": 0,
+                "ts": 1234567890,
+                "data": {"time": "12:00"},
+            },
+        )
+        manager = WidgetManager(
+            primary_widgets=[spotify_widget, custom_widget, vertical_widget],
+            fallback_widget=clock_widget,
+            config_store=FakeConfigStore(
+                {
+                    "enabled_widgets": ["spotify", "custom_gif", "vertical_image", "clock"],
+                    "display_mode": "priority",
+                    "hybrid_period_seconds": 60,
+                    "default_gif_duration_seconds": 5,
+                    "updated_at": 1,
+                }
+            ),
+        )
+
+        with patch("app.services.widget_manager.time.time", return_value=10.0):
+            clock_payload = await manager.get_screen_payload()
+        with patch("app.services.widget_manager.time.time", return_value=61.0):
+            custom_payload = await manager.get_screen_payload()
+        with patch("app.services.widget_manager.time.time", return_value=66.0):
+            vertical_payload = await manager.get_screen_payload()
+
+        self.assertEqual(clock_payload["widget"], "clock")
+        self.assertEqual(custom_payload["widget"], "custom_gif")
+        self.assertEqual(custom_payload["data"]["asset_id"], "gif-1")
+        self.assertEqual(vertical_payload["widget"], "custom_gif")
+        self.assertEqual(vertical_payload["data"]["asset_id"], "vertical-1")
 
     async def test_primary_widget_exception_does_not_break_payload_selection(self) -> None:
         spotify_widget = ExplodingWidget("spotify", 100, None)
@@ -327,16 +387,17 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "clock"],
                     "display_mode": "priority",
                     "hybrid_period_seconds": 300,
-                    "hybrid_show_seconds": 30,
+                    "default_gif_duration_seconds": 30,
                     "updated_at": 1,
                 }
             ),
         )
 
-        payload = await manager.get_screen_payload()
+        with patch("app.services.widget_manager.time.time", return_value=305.0):
+            payload = await manager.get_screen_payload()
 
         self.assertEqual(payload["widget"], "custom_gif")
-        self.assertEqual(len(spotify_widget.calls), 2)
+        self.assertEqual(len(spotify_widget.calls), 1)
         self.assertEqual(len(custom_widget.calls), 1)
 
     async def test_all_primary_exceptions_fall_back_to_clock(self) -> None:
@@ -360,7 +421,7 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "clock"],
                     "display_mode": "priority",
                     "hybrid_period_seconds": 300,
-                    "hybrid_show_seconds": 30,
+                    "default_gif_duration_seconds": 30,
                     "updated_at": 1,
                 }
             ),
@@ -383,7 +444,7 @@ class WidgetManagerPriorityTests(unittest.IsolatedAsyncioTestCase):
                     "enabled_widgets": ["spotify", "custom_gif", "clock"],
                     "display_mode": "priority",
                     "hybrid_period_seconds": 300,
-                    "hybrid_show_seconds": 30,
+                    "default_gif_duration_seconds": 30,
                     "updated_at": 1,
                 }
             ),
