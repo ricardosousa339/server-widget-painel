@@ -83,6 +83,20 @@
       background: rgba(112, 182, 255, 0.09);
     }
 
+    .quick-links button {
+      border: 1px solid rgba(88, 216, 168, 0.45);
+      border-radius: 999px;
+      background: rgba(88, 216, 168, 0.08);
+      color: var(--accent);
+      padding: 5px 10px;
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+
+    .quick-links button:hover {
+      filter: brightness(1.08);
+    }
+
     .settings-shell {
       display: grid;
       gap: 14px;
@@ -505,6 +519,10 @@
       font-size: 0.9rem;
     }
 
+    .status:empty {
+      display: none;
+    }
+
     #doorbellGifStatus {
       width: min(340px, 100%);
       overflow-wrap: anywhere;
@@ -671,6 +689,18 @@
       margin-top: 2px;
     }
 
+    body.compact .subtitle,
+    body.compact .sidebar-nav-copy > small,
+    body.compact .sidebar-note,
+    body.compact .settings-category-head p,
+    body.compact .hint {
+      display: none;
+    }
+
+    body.compact .hero {
+      padding-bottom: 14px;
+    }
+
     @media (max-width: 1080px) {
       .settings-shell {
         grid-template-columns: 1fr;
@@ -692,16 +722,17 @@
     }
   </style>
 </head>
-<body>
+<body class="compact">
   <main class="container" id="top">
     <section class="hero">
       <h1>Painel de Configuracao de Widgets</h1>
-      <p class="subtitle">Controle quais widgets estao ativos e gerencie a biblioteca de GIFs custom, o GIF da campainha e a imagem vertical com scroll.</p>
+      <p class="subtitle">Configure widgets, GIFs e imagem vertical em poucos cliques.</p>
       <div class="quick-links">
         <a href="/preview/painel">Preview painel</a>
         <a href="/preview/frame">Preview frame</a>
         <a href="/endpoints">Guia endpoints</a>
         <a href="/docs">OpenAPI docs</a>
+        <button id="toggleHelpBtn" type="button" aria-pressed="false">Mostrar ajuda</button>
       </div>
     </section>
 
@@ -785,7 +816,7 @@
               <small id="sidebarVerticalSpeed">Velocidade: -</small>
             </div>
           </div>
-          <p class="sidebar-note">Clique em uma categoria para abrir os itens. Os ícones ajudam a encontrar o bloco certo sem rolar a página toda.</p>
+          <p class="sidebar-note">Use o menu para abrir cada bloco.</p>
         </div>
 
         <div class="sidebar-panel">
@@ -807,13 +838,13 @@
               <span class="category-tag">Categoria 1</span>
               <h2>Painel e exibição</h2>
             </div>
-            <p>Escolha os widgets ativos, o modo de exibição e a ordem de prioridade do painel.</p>
+            <p>Escolha widgets e modo de exibicao.</p>
           </header>
 
           <div class="settings-category-body" hidden>
             <article class="card" id="widgets-card">
               <h2>Widgets Ativos</h2>
-              <p class="hint">Os widgets ativos entram na selecao por prioridade. Clique em salvar para aplicar.</p>
+              <p class="hint">Marque os widgets que deseja usar e salve.</p>
 
               <section class="mode-box">
                 <div class="mode-row">
@@ -837,7 +868,7 @@
                 <button id="enableAllBtn" class="secondary">Ativar todos</button>
                 <button id="disableAllBtn" class="secondary">Desativar todos</button>
                 <button id="reloadWidgetsBtn">Recarregar</button>
-                <button id="saveWidgetsBtn" class="primary">Salvar configuracao</button>
+                <button id="saveWidgetsBtn" class="primary">Salvar</button>
               </div>
 
               <section id="widgetsList" class="widgets"></section>
@@ -853,22 +884,22 @@
               <span class="category-tag">Categoria 2</span>
               <h2>Biblioteca de GIFs</h2>
             </div>
-            <p>Separe os GIFs custom da campainha e acompanhe metadados, ativos e previews em blocos dedicados.</p>
+            <p>Gerencie GIF custom, campainha e imagem vertical.</p>
           </header>
 
           <div class="settings-category-body media" hidden>
             <article class="card full-width" id="custom-gif-card">
               <h2>Biblioteca Custom GIF</h2>
-              <p class="hint">Envie varios GIFs, marque quais ficam ativos e o backend vai alternar entre eles. O ESP32 recebe o asset selecionado em um pacote de playback pronto para cache local.</p>
+              <p class="hint">Envie GIFs e deixe ativos os que podem aparecer.</p>
 
               <section class="upload-box">
                 <div class="upload-row">
                   <input id="customGifFileInput" type="file" accept="image/gif" multiple />
                   <button id="uploadCustomGifBtn" class="primary">Adicionar GIF</button>
-                  <button id="reloadCustomGifBtn">Atualizar biblioteca</button>
+                  <button id="reloadCustomGifBtn">Atualizar</button>
                 </div>
                 <div class="upload-row">
-                  <button id="enableCustomGifWidgetBtn" class="secondary">Ativar custom_gif na lista</button>
+                  <button id="enableCustomGifWidgetBtn" class="secondary">Ativar custom_gif</button>
                   <button id="clearCustomGifLibraryBtn" class="warn">Limpar biblioteca</button>
                 </div>
               </section>
@@ -880,16 +911,16 @@
 
             <article class="card" id="doorbell-gif-card">
               <h2>GIF da campainha</h2>
-              <p class="hint">Este GIF é separado da biblioteca custom e só é usado quando a campainha dispara.</p>
+              <p class="hint">Usado apenas quando a campainha dispara.</p>
 
               <section class="upload-box">
                 <div class="upload-row">
                   <input id="doorbellGifFileInput" type="file" accept="image/gif" />
-                  <button id="uploadDoorbellGifBtn" class="primary">Salvar GIF da campainha</button>
-                  <button id="removeDoorbellGifBtn" class="warn">Remover GIF da campainha</button>
+                  <button id="uploadDoorbellGifBtn" class="primary">Salvar GIF</button>
+                  <button id="removeDoorbellGifBtn" class="warn">Remover GIF</button>
                 </div>
                 <div class="upload-row">
-                  <button id="reloadDoorbellGifBtn">Atualizar status</button>
+                  <button id="reloadDoorbellGifBtn">Atualizar</button>
                 </div>
               </section>
 
@@ -904,22 +935,22 @@
 
             <article class="card" id="vertical-image-card">
               <h2>Imagem vertical (scroll)</h2>
-              <p class="hint">Envie uma imagem grande (idealmente largura 64px). O painel percorre de baixo para cima automaticamente.</p>
+              <p class="hint">Envie imagem (largura 64px) para rolagem automatica.</p>
 
               <section class="upload-box">
                 <div class="upload-row">
                   <input id="verticalImageFileInput" type="file" accept="image/*" />
                   <button id="uploadVerticalImageBtn" class="primary">Salvar imagem</button>
-                  <button id="reloadVerticalImageBtn">Atualizar status</button>
+                  <button id="reloadVerticalImageBtn">Atualizar</button>
                 </div>
                 <div class="upload-row">
                   <label for="verticalImageSpeedInput">Velocidade (px/s)</label>
                   <input id="verticalImageSpeedInput" type="number" min="1" max="120" step="1" value="14" />
-                  <button id="saveVerticalImageSpeedBtn" class="secondary">Salvar velocidade</button>
+                  <button id="saveVerticalImageSpeedBtn" class="secondary">Salvar</button>
                   <button id="removeVerticalImageBtn" class="warn">Remover imagem</button>
                 </div>
                 <div class="upload-row">
-                  <button id="enableVerticalImageWidgetBtn" class="secondary">Ativar vertical_image na lista</button>
+                  <button id="enableVerticalImageWidgetBtn" class="secondary">Ativar vertical_image</button>
                 </div>
               </section>
 
@@ -976,6 +1007,7 @@
     const reloadVerticalImageBtnEl = document.getElementById("reloadVerticalImageBtn");
     const saveVerticalImageSpeedBtnEl = document.getElementById("saveVerticalImageSpeedBtn");
     const enableVerticalImageWidgetBtnEl = document.getElementById("enableVerticalImageWidgetBtn");
+    const toggleHelpBtnEl = document.getElementById("toggleHelpBtn");
 
     const displayModeSelectEl = document.getElementById("displayModeSelect");
     const hybridConfigFieldsEl = document.getElementById("hybridConfigFields");
@@ -1003,10 +1035,44 @@
     const DISPLAY_MODES = new Set(["priority", "custom_only", "hybrid"]);
     const DEFAULT_HYBRID_PERIOD_SECONDS = 300;
     const DEFAULT_HYBRID_SHOW_SECONDS = 30;
+    const HELP_VISIBLE_STORAGE_KEY = "widgets.config.help.visible";
+    const statusClearTimers = new WeakMap();
 
     function setStatus(el, message, type) {
+      const previousTimer = statusClearTimers.get(el);
+      if (previousTimer) {
+        window.clearTimeout(previousTimer);
+        statusClearTimers.delete(el);
+      }
+
       el.textContent = message;
       el.className = "status" + (type ? " " + type : "");
+
+      if (type === "ok" && message) {
+        const timer = window.setTimeout(() => {
+          if (el.textContent === message) {
+            el.textContent = "";
+            el.className = "status";
+          }
+        }, 2400);
+        statusClearTimers.set(el, timer);
+      }
+    }
+
+    function applyHelpVisibility(showHelp) {
+      document.body.classList.toggle("compact", !showHelp);
+      toggleHelpBtnEl.textContent = showHelp ? "Ocultar ajuda" : "Mostrar ajuda";
+      toggleHelpBtnEl.setAttribute("aria-pressed", showHelp ? "true" : "false");
+    }
+
+    function initializeHelpVisibility() {
+      let showHelp = false;
+      try {
+        showHelp = window.localStorage.getItem(HELP_VISIBLE_STORAGE_KEY) === "1";
+      } catch (_error) {
+        showHelp = false;
+      }
+      applyHelpVisibility(showHelp);
     }
 
     function formatDateTime(ts) {
@@ -2153,6 +2219,15 @@
     saveVerticalImageSpeedBtnEl.addEventListener("click", saveVerticalImageSpeed);
     enableVerticalImageWidgetBtnEl.addEventListener("click", activateVerticalImageWidget);
 
+    toggleHelpBtnEl.addEventListener("click", () => {
+      const showHelp = document.body.classList.contains("compact");
+      applyHelpVisibility(showHelp);
+      try {
+        window.localStorage.setItem(HELP_VISIBLE_STORAGE_KEY, showHelp ? "1" : "0");
+      } catch (_error) {
+      }
+    });
+
     displayModeSelectEl.addEventListener("change", () => {
       syncDisplayModeUi(displayModeSelectEl.value);
       setStatus(widgetsStatusEl, "Modo alterado. Clique em salvar para aplicar.", "warn");
@@ -2168,6 +2243,7 @@
       setStatus(widgetsStatusEl, "Tempo do GIF alterado. Clique em salvar para aplicar.", "warn");
     });
 
+    initializeHelpVisibility();
     initializeCategoryAccordion();
     initPage();
   </script>
