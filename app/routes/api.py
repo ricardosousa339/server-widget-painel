@@ -230,6 +230,7 @@ def update_vertical_image_config(update: VerticalImageUpdateRequest) -> dict[str
         return vertical_image_widget.update_config(
             active=update.active,
             scroll_speed_pps=update.normalized_scroll_speed_pps(),
+            scroll_direction=update.normalized_scroll_direction(),
         )
     except VerticalImageWidgetError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

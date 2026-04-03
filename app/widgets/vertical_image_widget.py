@@ -30,6 +30,8 @@ class VerticalImageWidget(BaseWidget):
     SCHEMA_VERSION = 1
     MIN_SCROLL_SPEED_PPS = 1
     MAX_SCROLL_SPEED_PPS = 120
+    SCROLL_DIRECTION_UP = "up"
+    SCROLL_DIRECTION_DOWN = "down"
 
     def __init__(
         self,
@@ -66,10 +68,12 @@ class VerticalImageWidget(BaseWidget):
             source = self._ensure_source_for_asset(asset)
             now_ms = int(time.time() * 1000)
             speed_pps = self._normalize_scroll_speed(state.get("scroll_speed_pps"))
+            scroll_direction = self._normalize_scroll_direction(state.get("scroll_direction"))
             frame, scroll_range_px, scroll_progress_px, window_start_y = self._build_viewport_frame(
                 source,
                 now_ms=now_ms,
                 scroll_speed_pps=speed_pps,
+                scroll_direction=scroll_direction,
             )
         except VerticalImageWidgetError:
             return None
@@ -86,6 +90,7 @@ class VerticalImageWidget(BaseWidget):
                 "source_width": int(source.width),
                 "source_height": int(source.height),
                 "scroll_speed_pps": speed_pps,
+                "scroll_direction": scroll_direction,
                 "scroll_range_px": scroll_range_px,
                 "scroll_progress_px": scroll_progress_px,
                 "window_start_y": window_start_y,
@@ -106,6 +111,7 @@ class VerticalImageWidget(BaseWidget):
             "frame_width": self.frame_width,
             "frame_height": self.frame_height,
             "scroll_speed_pps": self._normalize_scroll_speed(state.get("scroll_speed_pps")),
+            "scroll_direction": self._normalize_scroll_direction(state.get("scroll_direction")),
             "asset": public_asset,
             "configured": bool(public_asset and public_asset["active"] and public_asset["available"]),
             "raw_url": self._raw_url(asset_id=public_asset["id"] if public_asset else None),
@@ -171,12 +177,17 @@ class VerticalImageWidget(BaseWidget):
         *,
         active: bool | None = None,
         scroll_speed_pps: int | None = None,
+        scroll_direction: str | None = None,
     ) -> dict[str, Any]:
         state = self._load_state()
         changed = False
 
         if scroll_speed_pps is not None:
             state["scroll_speed_pps"] = self._normalize_scroll_speed(scroll_speed_pps)
+            changed = True
+
+        if scroll_direction is not None:
+            state["scroll_direction"] = self._normalize_scroll_direction(scroll_direction)
             changed = True
 
         asset = state.get("asset")
@@ -223,6 +234,7 @@ class VerticalImageWidget(BaseWidget):
         return {
             "schema_version": self.SCHEMA_VERSION,
             "scroll_speed_pps": self.default_scroll_speed_pps,
+            "scroll_direction": self.SCROLL_DIRECTION_UP,
             "asset": None,
         }
 
@@ -255,6 +267,9 @@ class VerticalImageWidget(BaseWidget):
         normalized = self._default_state()
         normalized["scroll_speed_pps"] = self._normalize_scroll_speed(
             state.get("scroll_speed_pps")
+        )
+        normalized["scroll_direction"] = self._normalize_scroll_direction(
+            state.get("scroll_direction")
         )
 
         asset = state.get("asset")
@@ -331,6 +346,7 @@ class VerticalImageWidget(BaseWidget):
         *,
         now_ms: int,
         scroll_speed_pps: int,
+        scroll_direction: str,
     ) -> tuple[Image.Image, int, int, int]:
         frame = Image.new("RGB", (self.frame_width, self.frame_height), (0, 0, 0))
 
@@ -342,7 +358,11 @@ class VerticalImageWidget(BaseWidget):
 
         scroll_range_px = source_h - self.frame_height
         scroll_progress_px = int((now_ms * scroll_speed_pps) / 1000) % (scroll_range_px + 1)
-        window_start_y = scroll_range_px - scroll_progress_px
+        normalized_direction = self._normalize_scroll_direction(scroll_direction)
+        if normalized_direction == self.SCROLL_DIRECTION_DOWN:
+            window_start_y = scroll_progress_px
+        else:
+            window_start_y = scroll_range_px - scroll_progress_px
         frame.paste(source, (0, -window_start_y))
 
         return frame, scroll_range_px, scroll_progress_px, window_start_y
@@ -463,3 +483,9 @@ class VerticalImageWidget(BaseWidget):
         if speed > self.MAX_SCROLL_SPEED_PPS:
             return self.MAX_SCROLL_SPEED_PPS
         return speed
+
+    def _normalize_scroll_direction(self, value: Any) -> str:
+        direction = str(value or self.SCROLL_DIRECTION_UP).strip().lower()
+        if direction not in {self.SCROLL_DIRECTION_UP, self.SCROLL_DIRECTION_DOWN}:
+            return self.SCROLL_DIRECTION_UP
+        return direction

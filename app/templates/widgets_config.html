@@ -946,7 +946,12 @@
                 <div class="upload-row">
                   <label for="verticalImageSpeedInput">Velocidade (px/s)</label>
                   <input id="verticalImageSpeedInput" type="number" min="1" max="120" step="1" value="14" />
-                  <button id="saveVerticalImageSpeedBtn" class="secondary">Salvar</button>
+                  <label for="verticalImageDirectionSelect">Direção</label>
+                  <select id="verticalImageDirectionSelect">
+                    <option value="up">Subir</option>
+                    <option value="down">Descer</option>
+                  </select>
+                  <button id="saveVerticalImageSpeedBtn" class="secondary">Salvar ajustes</button>
                   <button id="removeVerticalImageBtn" class="warn">Remover imagem</button>
                 </div>
                 <div class="upload-row">
@@ -1002,6 +1007,7 @@
     const verticalImageStatusEl = document.getElementById("verticalImageStatus");
     const verticalImageFileInputEl = document.getElementById("verticalImageFileInput");
     const verticalImageSpeedInputEl = document.getElementById("verticalImageSpeedInput");
+    const verticalImageDirectionSelectEl = document.getElementById("verticalImageDirectionSelect");
     const uploadVerticalImageBtnEl = document.getElementById("uploadVerticalImageBtn");
     const removeVerticalImageBtnEl = document.getElementById("removeVerticalImageBtn");
     const reloadVerticalImageBtnEl = document.getElementById("reloadVerticalImageBtn");
@@ -1129,6 +1135,18 @@
       if (mode === "custom_only") return "Sempre custom_gif";
       if (mode === "hybrid") return "Hibrido";
       return "Padrao (prioridade)";
+    }
+
+    function normalizeVerticalImageDirection(direction) {
+      const normalized = String(direction || "up").toLowerCase();
+      if (normalized === "down") {
+        return "down";
+      }
+      return "up";
+    }
+
+    function formatVerticalImageDirection(direction) {
+      return normalizeVerticalImageDirection(direction) === "down" ? "descendo" : "subindo";
     }
 
     function getAssetKey(asset) {
@@ -1276,14 +1294,16 @@
 
       const asset = state?.asset || null;
       const speed = Number(state?.scroll_speed_pps || 14);
+      const direction = normalizeVerticalImageDirection(state?.scroll_direction || "up");
       verticalImageSpeedInputEl.value = String(speed);
+      verticalImageDirectionSelectEl.value = direction;
 
       renderAssetPreview(verticalImagePreviewEl, verticalImagePreviewEmptyEl, asset);
       removeVerticalImageBtnEl.disabled = !asset;
 
       verticalImageMetaEl.textContent = asset
-        ? `${formatAssetMeta(asset)} | velocidade: ${speed} px/s`
-        : `Nenhuma imagem vertical configurada. Velocidade atual: ${speed} px/s`;
+        ? `${formatAssetMeta(asset)} | velocidade: ${speed} px/s | direção: ${formatVerticalImageDirection(direction)}`
+        : `Nenhuma imagem vertical configurada. Velocidade atual: ${speed} px/s | direção: ${formatVerticalImageDirection(direction)}`;
 
       clearElement(verticalImageActionsEl);
 
@@ -1741,28 +1761,41 @@
       }
     }
 
-    async function saveVerticalImageSpeed() {
+    async function saveVerticalImageSettings() {
       const speed = sanitizeInt(
         verticalImageSpeedInputEl.value,
         Number(latestVerticalImageState?.scroll_speed_pps || 14),
         1,
         120
       );
+      const direction = normalizeVerticalImageDirection(verticalImageDirectionSelectEl.value);
       verticalImageSpeedInputEl.value = String(speed);
+      verticalImageDirectionSelectEl.value = direction;
 
       saveVerticalImageSpeedBtnEl.disabled = true;
-      setStatus(verticalImageStatusEl, `Salvando velocidade (${speed} px/s)...`, "");
+      setStatus(
+        verticalImageStatusEl,
+        `Salvando ajustes (${speed} px/s, ${formatVerticalImageDirection(direction)})...`,
+        ""
+      );
 
       try {
         const state = await requestJson("/widgets/vertical-image/config", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scroll_speed_pps: speed }),
+          body: JSON.stringify({
+            scroll_speed_pps: speed,
+            scroll_direction: direction,
+          }),
         });
         renderVerticalImageState(state);
-        setStatus(verticalImageStatusEl, `Velocidade atualizada para ${speed} px/s.`, "ok");
+        setStatus(
+          verticalImageStatusEl,
+          `Imagem vertical atualizada (${speed} px/s, ${formatVerticalImageDirection(direction)}).`,
+          "ok"
+        );
       } catch (error) {
-        setStatus(verticalImageStatusEl, "Erro ao salvar velocidade: " + error.message, "err");
+        setStatus(verticalImageStatusEl, "Erro ao salvar ajustes: " + error.message, "err");
       } finally {
         saveVerticalImageSpeedBtnEl.disabled = false;
       }
@@ -2043,13 +2076,14 @@
       const vertical = latestVerticalImageState || {};
       const verticalAsset = vertical.asset || null;
       const verticalSpeed = Number(vertical.scroll_speed_pps || 0);
+      const verticalDirection = normalizeVerticalImageDirection(vertical.scroll_direction || "up");
 
       sidebarVerticalStateEl.textContent = verticalAsset
         ? (verticalAsset.active ? "Ativo" : "Inativo")
         : "Sem imagem";
       sidebarVerticalSpeedEl.textContent = Number.isFinite(verticalSpeed) && verticalSpeed > 0
-        ? `Velocidade: ${verticalSpeed} px/s`
-        : "Velocidade: -";
+        ? `Velocidade: ${verticalSpeed} px/s | ${formatVerticalImageDirection(verticalDirection)}`
+        : `Velocidade: - | ${formatVerticalImageDirection(verticalDirection)}`;
     }
 
     function renderWidgets(config) {
@@ -2216,7 +2250,7 @@
     reloadVerticalImageBtnEl.addEventListener("click", () => loadVerticalImageState());
     uploadVerticalImageBtnEl.addEventListener("click", uploadVerticalImage);
     removeVerticalImageBtnEl.addEventListener("click", removeVerticalImage);
-    saveVerticalImageSpeedBtnEl.addEventListener("click", saveVerticalImageSpeed);
+    saveVerticalImageSpeedBtnEl.addEventListener("click", saveVerticalImageSettings);
     enableVerticalImageWidgetBtnEl.addEventListener("click", activateVerticalImageWidget);
 
     toggleHelpBtnEl.addEventListener("click", () => {

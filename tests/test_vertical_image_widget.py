@@ -5,6 +5,7 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -53,6 +54,7 @@ class VerticalImageWidgetTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(asset["available"])
         self.assertTrue(state["configured"])
         self.assertEqual(state["scroll_speed_pps"], 14)
+        self.assertEqual(state["scroll_direction"], "up")
 
     async def test_get_data_returns_rgb565_frame_payload_when_active(self) -> None:
         raw = make_png_bytes(width=64, height=120, color=(40, 180, 220))
@@ -76,6 +78,33 @@ class VerticalImageWidgetTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(decoded), 64 * 32 * 2)
         self.assertGreaterEqual(payload["data"]["scroll_progress_px"], 0)
         self.assertGreaterEqual(payload["data"]["scroll_range_px"], 0)
+
+    async def test_get_data_respects_scroll_direction(self) -> None:
+        raw = make_png_bytes(width=32, height=96, color=(90, 60, 180))
+        self.widget.save_image(
+            filename="direction.png",
+            content_type="image/png",
+            raw_bytes=raw,
+            active=True,
+        )
+
+        self.widget.update_config(scroll_direction="down")
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=1.0):
+            down_payload = await self.widget.get_data(image_mode="rgb565_base64")
+
+        self.assertIsNotNone(down_payload)
+        self.assertEqual(down_payload["data"]["scroll_direction"], "down")
+        self.assertEqual(down_payload["data"]["scroll_progress_px"], 14)
+        self.assertEqual(down_payload["data"]["window_start_y"], 14)
+
+        self.widget.update_config(scroll_direction="up")
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=1.0):
+            up_payload = await self.widget.get_data(image_mode="rgb565_base64")
+
+        self.assertIsNotNone(up_payload)
+        self.assertEqual(up_payload["data"]["scroll_direction"], "up")
+        self.assertEqual(up_payload["data"]["scroll_progress_px"], 14)
+        self.assertEqual(up_payload["data"]["window_start_y"], 146)
 
     async def test_get_data_returns_none_when_asset_inactive(self) -> None:
         raw = make_png_bytes(width=64, height=80, color=(100, 10, 10))
