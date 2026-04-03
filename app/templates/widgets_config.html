@@ -37,7 +37,7 @@
         radial-gradient(circle at 12% 0%, rgba(88, 216, 168, 0.14), transparent 33%),
         radial-gradient(circle at 92% 5%, rgba(112, 182, 255, 0.15), transparent 36%),
         linear-gradient(165deg, #070b10, #0b1119 50%, #10192a);
-      padding: 22px;
+      padding: 20px;
     }
 
     .container {
@@ -52,6 +52,87 @@
       border-radius: 16px;
       background: linear-gradient(120deg, rgba(88, 216, 168, 0.13), rgba(88, 216, 168, 0.03));
       padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .hero-top {
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero-kicker {
+      color: var(--accent-2);
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .hero-top h1 {
+      margin: 0;
+      font-size: 1.7rem;
+      letter-spacing: 0.2px;
+    }
+
+    .hero-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .hero-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      border: 1px solid rgba(112, 182, 255, 0.35);
+      background: rgba(112, 182, 255, 0.08);
+      color: var(--accent-2);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .hero-chip strong {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .hero-overview {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+
+    .overview-card {
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid rgba(57, 80, 107, 0.75);
+      border-radius: 14px;
+      padding: 12px 13px;
+      background: rgba(255, 255, 255, 0.03);
+      display: grid;
+      gap: 4px;
+      min-height: 86px;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    .overview-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(88, 216, 168, 0.55);
+      background: rgba(88, 216, 168, 0.08);
+    }
+
+    .overview-card strong {
+      font-size: 0.96rem;
+    }
+
+    .overview-card span {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
     }
 
     h1 {
@@ -97,14 +178,25 @@
       filter: brightness(1.08);
     }
 
+    .hero-note {
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(112, 182, 255, 0.28);
+      background: rgba(112, 182, 255, 0.08);
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
     .settings-shell {
       display: grid;
       gap: 14px;
-      grid-template-columns: minmax(250px, 290px) minmax(0, 1fr);
+      grid-template-columns: 1fr;
       align-items: start;
     }
 
     .settings-sidebar {
+      display: none !important;
       position: sticky;
       top: 14px;
       display: grid;
@@ -310,6 +402,14 @@
       font-size: 1.08rem;
     }
 
+    .settings-category-head .section-intro {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+      max-width: 64ch;
+    }
+
     .settings-category-head p {
       margin: 0;
       color: var(--muted);
@@ -334,6 +434,8 @@
     .settings-category-body {
       display: grid;
       gap: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(57, 80, 107, 0.45);
     }
 
     .settings-category-body[hidden] {
@@ -355,11 +457,27 @@
       scroll-margin-top: 18px;
     }
 
+    .settings-category {
+      border: 1px solid rgba(57, 80, 107, 0.7);
+      border-radius: 18px;
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.012), transparent), rgba(8, 12, 18, 0.68);
+      display: grid;
+      gap: 14px;
+    }
+
     .card {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent), var(--surface);
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 14px;
+    }
+
+    .section-intro {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
     }
 
     .full-width {
@@ -386,6 +504,33 @@
       background: rgba(88, 216, 168, 0.05);
       display: grid;
       gap: 8px;
+    }
+
+    .mode-help {
+      display: grid;
+      gap: 8px;
+      margin-top: 2px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(57, 80, 107, 0.35);
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .mode-help strong {
+      color: var(--text);
+      font-size: 0.88rem;
+    }
+
+    .mode-help ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .mode-help li {
+      line-height: 1.4;
     }
 
     .mode-row {
@@ -689,11 +834,24 @@
       margin-top: 2px;
     }
 
+    .media-intro {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
     body.compact .subtitle,
+    body.compact .hero-meta-row,
+    body.compact .hero-overview,
+    body.compact .hero-note,
     body.compact .sidebar-nav-copy > small,
     body.compact .sidebar-note,
     body.compact .settings-category-head p,
-    body.compact .hint {
+    body.compact .section-intro,
+    body.compact .media-intro,
+    body.compact .hint,
+    body.compact .mode-help {
       display: none;
     }
 
@@ -707,6 +865,7 @@
       }
 
       .settings-sidebar {
+      display: none !important;
         position: static;
       }
     }
@@ -722,11 +881,37 @@
     }
   </style>
 </head>
-<body class="compact">
+<body>
   <main class="container" id="top">
     <section class="hero">
-      <h1>Painel de Configuracao de Widgets</h1>
-      <p class="subtitle">Configure widgets, GIFs e imagem vertical em poucos cliques.</p>
+      <div class="hero-top">
+        <span class="hero-kicker">Configuração guiada</span>
+        <div>
+          <h1>Painel de Configuracao de Widgets</h1>
+          </div>
+      </div>
+
+      <div class="hero-meta-row" aria-label="Resumo da página">
+        <span class="hero-chip"><strong>1</strong> Widgets e exibição</span>
+        <span class="hero-chip"><strong>2</strong> Biblioteca de mídias</span>
+        <span class="hero-chip"><strong>3</strong> Ajustes e ativação</span>
+      </div>
+
+      <div class="hero-overview">
+        <a class="overview-card" href="#category-panel">
+          <strong>Widgets e modo</strong>
+          <span>Selecione os widgets ativos e defina prioridade, custom_only ou hybrid.</span>
+        </a>
+        <a class="overview-card" href="#category-media">
+          <strong>Biblioteca de GIFs</strong>
+          <span>Gerencie GIFs custom e o GIF da campainha com o mesmo fluxo de ação.</span>
+        </a>
+        <a class="overview-card" href="#vertical-image-card">
+          <strong>Imagem vertical</strong>
+          <span>Envie, ative e ajuste scroll sem sair da tela de configuração.</span>
+        </a>
+      </div>
+
       <div class="quick-links">
         <a href="/preview/painel">Preview painel</a>
         <a href="/preview/frame">Preview frame</a>
@@ -734,7 +919,8 @@
         <a href="/docs">OpenAPI docs</a>
         <button id="toggleHelpBtn" type="button" aria-pressed="false">Mostrar ajuda</button>
       </div>
-    </section>
+
+      </section>
 
     <section class="settings-shell">
       <aside class="settings-sidebar" aria-label="Barra lateral de navegação">
@@ -816,8 +1002,7 @@
               <small id="sidebarVerticalSpeed">Velocidade: -</small>
             </div>
           </div>
-          <p class="sidebar-note">Use o menu para abrir cada bloco.</p>
-        </div>
+          </div>
 
         <div class="sidebar-panel">
           <div class="sidebar-panel-head">
@@ -838,14 +1023,11 @@
               <span class="category-tag">Categoria 1</span>
               <h2>Painel e exibição</h2>
             </div>
-            <p>Escolha widgets e modo de exibicao.</p>
-          </header>
+            </header>
 
-          <div class="settings-category-body" hidden>
+          <div class="settings-category-body">
             <article class="card" id="widgets-card">
               <h2>Widgets Ativos</h2>
-              <p class="hint">Marque os widgets que deseja usar e salve.</p>
-
               <section class="mode-box">
                 <div class="mode-row">
                   <label for="displayModeSelect">Modo de exibicao:</label>
@@ -862,13 +1044,13 @@
                   <input id="hybridShowInput" type="number" min="1" max="3600" step="1" value="30" />
                 </div>
                 <div id="modeSummary" class="mode-meta">Modo atual: Padrao (prioridade)</div>
-              </section>
+                </section>
 
               <div class="toolbar">
                 <button id="enableAllBtn" class="secondary">Ativar todos</button>
                 <button id="disableAllBtn" class="secondary">Desativar todos</button>
                 <button id="reloadWidgetsBtn">Recarregar</button>
-                <button id="saveWidgetsBtn" class="primary">Salvar</button>
+                <button id="saveWidgetsBtn" class="primary">Salvar alterações</button>
               </div>
 
               <section id="widgetsList" class="widgets"></section>
@@ -884,14 +1066,11 @@
               <span class="category-tag">Categoria 2</span>
               <h2>Biblioteca de GIFs</h2>
             </div>
-            <p>Gerencie GIF custom, campainha e imagem vertical.</p>
-          </header>
+            </header>
 
-          <div class="settings-category-body media" hidden>
+          <div class="settings-category-body media">
             <article class="card full-width" id="custom-gif-card">
               <h2>Biblioteca Custom GIF</h2>
-              <p class="hint">Envie GIFs e deixe ativos os que podem aparecer.</p>
-
               <section class="upload-box">
                 <div class="upload-row">
                   <input id="customGifFileInput" type="file" accept="image/gif" multiple />
@@ -911,8 +1090,6 @@
 
             <article class="card" id="doorbell-gif-card">
               <h2>GIF da campainha</h2>
-              <p class="hint">Usado apenas quando a campainha dispara.</p>
-
               <section class="upload-box">
                 <div class="upload-row">
                   <input id="doorbellGifFileInput" type="file" accept="image/gif" />
@@ -935,8 +1112,6 @@
 
             <article class="card" id="vertical-image-card">
               <h2>Imagem vertical (scroll)</h2>
-              <p class="hint">Envie imagem (largura 64px) para rolagem automatica.</p>
-
               <section class="upload-box">
                 <div class="upload-row">
                   <input id="verticalImageFileInput" type="file" accept="image/*" />
@@ -1072,11 +1247,16 @@
     }
 
     function initializeHelpVisibility() {
-      let showHelp = false;
+      let showHelp = true;
       try {
-        showHelp = window.localStorage.getItem(HELP_VISIBLE_STORAGE_KEY) === "1";
+        const storedValue = window.localStorage.getItem(HELP_VISIBLE_STORAGE_KEY);
+        if (storedValue === "0") {
+          showHelp = false;
+        } else if (storedValue === "1") {
+          showHelp = true;
+        }
       } catch (_error) {
-        showHelp = false;
+        showHelp = true;
       }
       applyHelpVisibility(showHelp);
     }
@@ -1899,7 +2079,7 @@
       for (const section of categorySections) {
         const head = getCategoryHead(section);
         if (head) {
-          head.setAttribute("aria-expanded", section.id === categoryId ? "true" : "false");
+          head.setAttribute("aria-expanded", section.classList.contains("is-open") ? "true" : "false");
         }
       }
     }
@@ -1922,12 +2102,6 @@
     function openCategory(section, { scroll = false } = {}) {
       if (!section) {
         return false;
-      }
-
-      for (const otherSection of categorySections) {
-        if (otherSection !== section) {
-          closeCategory(otherSection);
-        }
       }
 
       const body = getCategoryBody(section);
@@ -1990,7 +2164,7 @@
 
         head.setAttribute("role", "button");
         head.setAttribute("tabindex", "0");
-        head.setAttribute("aria-expanded", "false");
+        head.setAttribute("aria-expanded", "true");
 
         head.addEventListener("click", () => {
           toggleCategory(section, { scroll: false });
@@ -2005,8 +2179,10 @@
 
         const body = getCategoryBody(section);
         if (body) {
-          body.hidden = true;
+          body.hidden = false;
         }
+
+        section.classList.add("is-open");
       }
 
       for (const link of sidebarNavLinks) {
@@ -2042,6 +2218,8 @@
         if (!openCategoryById(targetId, { scroll: true })) {
           setSidebarActiveCategory(null);
         }
+      } else if (categorySections.length > 0) {
+        setSidebarActiveCategory(categorySections[0].id);
       }
     }
 

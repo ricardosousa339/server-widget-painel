@@ -79,7 +79,7 @@ class VerticalImageWidget(BaseWidget):
             return None
 
         return {
-            "widget": self.name,
+            "widget": "custom_gif",  # Mascarado como custom_gif para o ESP32 desenhar nativamente
             "priority": self.priority,
             "ts": int(time.time()),
             "data": {
