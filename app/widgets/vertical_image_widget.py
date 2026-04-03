@@ -28,7 +28,8 @@ class VerticalImageCache:
 class VerticalImageWidget(BaseWidget):
     name = "vertical_image"
     SCHEMA_VERSION = 2
-    ACTIVE_ASSET_ROTATION_SLOT_MS = 5000
+    MIN_ASSET_DURATION_MS = 1000
+    END_HOLD_MS = 250
     MIN_SCROLL_SPEED_PPS = 1
     MAX_SCROLL_SPEED_PPS = 120
     SCROLL_DIRECTION_UP = "up"
@@ -69,12 +70,12 @@ class VerticalImageWidget(BaseWidget):
 
             asset = selection["asset"]
             source = self._ensure_source_for_asset(asset)
-            now_ms = int(time.time() * 1000)
+            asset_elapsed_ms = int(selection.get("asset_elapsed_ms") or 0)
             speed_pps = self._normalize_scroll_speed(state.get("scroll_speed_pps"))
             scroll_direction = self._normalize_scroll_direction(state.get("scroll_direction"))
             frame, scroll_range_px, scroll_progress_px, window_start_y = self._build_viewport_frame(
                 source,
-                now_ms=now_ms,
+                elapsed_ms=asset_elapsed_ms,
                 scroll_speed_pps=speed_pps,
                 scroll_direction=scroll_direction,
             )
@@ -101,6 +102,8 @@ class VerticalImageWidget(BaseWidget):
                 "selected_count": selection["active_count"],
                 "cycle_total_ms": selection["cycle_total_ms"],
                 "cycle_position_ms": selection["cycle_position_ms"],
+                "asset_elapsed_ms": asset_elapsed_ms,
+                "asset_duration_ms": int(selection.get("asset_duration_ms") or 0),
                 "raw_url": self._raw_url(asset_id=asset["id"]),
                 "preview_url": self._raw_url(asset_id=asset["id"]),
                 "frame": self._encode_frame_payload(frame, image_mode=image_mode),
@@ -438,19 +441,24 @@ class VerticalImageWidget(BaseWidget):
         if not filtered_assets:
             return None
 
-        available_assets = [
-            asset
-            for asset in filtered_assets
-            if self._asset_file_path(asset).exists()
-        ]
+        speed_pps = self._normalize_scroll_speed(state.get("scroll_speed_pps"))
+        available_assets: list[tuple[dict[str, Any], int]] = []
+        for asset in filtered_assets:
+            if not self._asset_file_path(asset).exists():
+                continue
+            available_assets.append((asset, self._asset_duration_ms(asset, scroll_speed_pps=speed_pps)))
         if not available_assets:
+            return None
+
+        cycle_total_ms = sum(duration_ms for _, duration_ms in available_assets)
+        if cycle_total_ms <= 0:
             return None
 
         if asset_id is not None:
             selected_index = next(
                 (
                     index
-                    for index, asset in enumerate(available_assets)
+                    for index, (asset, _duration_ms) in enumerate(available_assets)
                     if str(asset.get("id") or "") == str(asset_id)
                 ),
                 None,
@@ -458,34 +466,55 @@ class VerticalImageWidget(BaseWidget):
             if selected_index is None:
                 return None
 
-            slot_ms = max(1, self.ACTIVE_ASSET_ROTATION_SLOT_MS)
+            selected_asset, selected_duration_ms = available_assets[selected_index]
+            cycle_offset_ms = sum(duration_ms for _, duration_ms in available_assets[:selected_index])
             return {
-                "asset": available_assets[selected_index],
+                "asset": selected_asset,
                 "active_count": len(available_assets),
                 "selected_index": selected_index,
-                "cycle_total_ms": slot_ms * len(available_assets),
-                "cycle_position_ms": selected_index * slot_ms,
+                "cycle_total_ms": cycle_total_ms,
+                "cycle_position_ms": cycle_offset_ms,
+                "asset_elapsed_ms": 0,
+                "asset_duration_ms": selected_duration_ms,
             }
 
-        slot_ms = max(1, self.ACTIVE_ASSET_ROTATION_SLOT_MS)
-        cycle_total_ms = slot_ms * len(available_assets)
         current_ms = now_ms if now_ms is not None else int(time.time() * 1000)
         phase = current_ms % cycle_total_ms
-        selected_index = min(phase // slot_ms, len(available_assets) - 1)
+
+        selected_index = 0
+        selected_asset = available_assets[0][0]
+        selected_duration_ms = available_assets[0][1]
+        cycle_offset_ms = 0
+        asset_elapsed_ms = 0
+        cursor_ms = 0
+
+        for index, (asset, duration_ms) in enumerate(available_assets):
+            end_ms = cursor_ms + duration_ms
+            if phase < end_ms or index == len(available_assets) - 1:
+                selected_index = index
+                selected_asset = asset
+                selected_duration_ms = duration_ms
+                cycle_offset_ms = cursor_ms
+                asset_elapsed_ms = max(0, phase - cursor_ms)
+                break
+            cursor_ms = end_ms
 
         return {
-            "asset": available_assets[selected_index],
+            "asset": selected_asset,
             "active_count": len(available_assets),
             "selected_index": selected_index,
             "cycle_total_ms": cycle_total_ms,
             "cycle_position_ms": phase,
+            "asset_elapsed_ms": asset_elapsed_ms,
+            "asset_duration_ms": selected_duration_ms,
+            "asset_cycle_offset_ms": cycle_offset_ms,
         }
 
     def _build_viewport_frame(
         self,
         source: Image.Image,
         *,
-        now_ms: int,
+        elapsed_ms: int,
         scroll_speed_pps: int,
         scroll_direction: str,
     ) -> tuple[Image.Image, int, int, int]:
@@ -498,7 +527,9 @@ class VerticalImageWidget(BaseWidget):
             return frame, 0, 0, 0
 
         scroll_range_px = source_h - self.frame_height
-        scroll_progress_px = int((now_ms * scroll_speed_pps) / 1000) % (scroll_range_px + 1)
+        elapsed = max(0, int(elapsed_ms))
+        raw_progress_px = int((elapsed * scroll_speed_pps) / 1000)
+        scroll_progress_px = min(scroll_range_px, raw_progress_px)
         normalized_direction = self._normalize_scroll_direction(scroll_direction)
         if normalized_direction == self.SCROLL_DIRECTION_DOWN:
             window_start_y = scroll_progress_px
@@ -507,6 +538,16 @@ class VerticalImageWidget(BaseWidget):
         frame.paste(source, (0, -window_start_y))
 
         return frame, scroll_range_px, scroll_progress_px, window_start_y
+
+    def _asset_duration_ms(self, asset: dict[str, Any], *, scroll_speed_pps: int) -> int:
+        asset_height = int(asset.get("height") or self.frame_height)
+        scroll_range_px = max(0, asset_height - self.frame_height)
+        if scroll_range_px <= 0:
+            return self.MIN_ASSET_DURATION_MS
+
+        speed = max(1, int(scroll_speed_pps))
+        travel_ms = (scroll_range_px * 1000 + (speed - 1)) // speed
+        return max(self.MIN_ASSET_DURATION_MS, int(travel_ms) + self.END_HOLD_MS)
 
     def _asset_public_payload(self, asset: dict[str, Any] | None) -> dict[str, Any] | None:
         if not isinstance(asset, dict):

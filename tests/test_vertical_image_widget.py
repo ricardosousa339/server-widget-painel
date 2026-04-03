@@ -71,13 +71,14 @@ class VerticalImageWidgetTests(unittest.IsolatedAsyncioTestCase):
             raw_bytes=make_png_bytes(width=64, height=140, color=(90, 60, 180)),
             active=True,
         )
+        self.widget.update_config(scroll_speed_pps=120)
 
         assets = state["assets"]
         self.assertEqual(len(assets), 2)
 
-        with patch("app.widgets.vertical_image_widget.time.time", return_value=1.0):
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=0.10):
             payload_a = await self.widget.get_data(image_mode="rgb565_base64")
-        with patch("app.widgets.vertical_image_widget.time.time", return_value=6.0):
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=1.10):
             payload_b = await self.widget.get_data(image_mode="rgb565_base64")
 
         self.assertIsNotNone(payload_a)
@@ -85,6 +86,8 @@ class VerticalImageWidgetTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload_a["widget"], "custom_gif")
         self.assertEqual(payload_b["widget"], "custom_gif")
         self.assertNotEqual(payload_a["data"]["asset_id"], payload_b["data"]["asset_id"])
+        self.assertLess(payload_a["data"]["asset_elapsed_ms"], payload_a["data"]["asset_duration_ms"])
+        self.assertLess(payload_b["data"]["asset_elapsed_ms"], payload_b["data"]["asset_duration_ms"])
 
         frame = payload_a["data"]["frame"]
         self.assertEqual(frame["enc"], "rgb565_base64")
@@ -93,6 +96,36 @@ class VerticalImageWidgetTests(unittest.IsolatedAsyncioTestCase):
 
         decoded = base64.b64decode(frame["data"])
         self.assertEqual(len(decoded), 64 * 32 * 2)
+
+    async def test_asset_reaches_end_before_switching_to_next(self) -> None:
+        state = self.widget.save_image(
+            filename="a.png",
+            content_type="image/png",
+            raw_bytes=make_png_bytes(width=64, height=120, color=(255, 40, 40)),
+            active=True,
+        )
+        state = self.widget.save_image(
+            filename="b.png",
+            content_type="image/png",
+            raw_bytes=make_png_bytes(width=64, height=140, color=(40, 255, 40)),
+            active=True,
+        )
+        self.widget.update_config(scroll_speed_pps=120)
+
+        first_asset_id = state["assets"][0]["id"]
+        first_scroll_range = int(state["assets"][0]["height"]) - self.widget.frame_height
+
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=0.10):
+            start_payload = await self.widget.get_data()
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=0.95):
+            end_payload = await self.widget.get_data()
+        with patch("app.widgets.vertical_image_widget.time.time", return_value=1.10):
+            next_payload = await self.widget.get_data()
+
+        self.assertEqual(start_payload["data"]["asset_id"], first_asset_id)
+        self.assertEqual(end_payload["data"]["asset_id"], first_asset_id)
+        self.assertEqual(end_payload["data"]["scroll_progress_px"], first_scroll_range)
+        self.assertNotEqual(next_payload["data"]["asset_id"], first_asset_id)
 
     async def test_update_asset_active_and_fallback_behavior(self) -> None:
         state = self.widget.save_image(
@@ -107,6 +140,7 @@ class VerticalImageWidgetTests(unittest.IsolatedAsyncioTestCase):
             raw_bytes=make_png_bytes(width=64, height=100, color=(0, 220, 0)),
             active=True,
         )
+        self.widget.update_config(scroll_speed_pps=120)
 
         first_id = state["assets"][0]["id"]
         second_id = state["assets"][1]["id"]
