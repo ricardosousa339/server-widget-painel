@@ -301,30 +301,63 @@ class WidgetManager:
         if period_seconds < 0:
             period_seconds = 0
 
-        media_window_seconds = show_seconds * len(media_widgets)
+        # Calculate actual durations dynamically
+        media_widgets_info = []
+        for widget_name in media_widgets:
+            widget = self.primary_widget_by_name.get(widget_name)
+            duration_s = show_seconds
+            if widget:
+                state = widget.get_state()
+                cycle_ms = 0
+                if widget_name == self.VERTICAL_WIDGET_NAME:
+                    cycle_ms = state.get("cycle_total_ms", 0)
+                elif widget_name == self.CUSTOM_WIDGET_NAME:
+                    cycle_ms = state.get("custom", {}).get("cycle_total_ms", 0)
+                
+                if cycle_ms > 0:
+                    duration_s = max(show_seconds, (cycle_ms + 999) // 1000)
+            
+            media_widgets_info.append({
+                "name": widget_name,
+                "duration": duration_s
+            })
+
+        media_window_seconds = sum(info["duration"] for info in media_widgets_info)
         cycle_seconds = period_seconds + media_window_seconds
         if cycle_seconds <= 0:
             return None
 
         now_seconds = int(time.time())
         phase_seconds = now_seconds % cycle_seconds
+        
+        # In priority/hybrid mode, respect the clock period window
         if phase_seconds < period_seconds:
             return None
 
         media_phase_seconds = phase_seconds - period_seconds
-        start_index = min(media_phase_seconds // show_seconds, len(media_widgets) - 1)
-        scheduled_widgets = media_widgets[start_index:] + media_widgets[:start_index]
+        
+        # Find which widget is scheduled
+        current_offset = 0
+        scheduled_widget = None
+        playhead_s = 0
+        
+        for info in media_widgets_info:
+            if media_phase_seconds < current_offset + info["duration"]:
+                scheduled_widget = info["name"]
+                playhead_s = media_phase_seconds - current_offset
+                break
+            current_offset += info["duration"]
+            
+        if scheduled_widget is None:
+            scheduled_widget = media_widgets_info[-1]["name"]
+            playhead_s = media_phase_seconds - current_offset + media_widgets_info[-1]["duration"]
 
-        for widget_name in scheduled_widgets:
-            payload = await self._payload_for_widget(
-                widget_name,
-                enabled_widgets=enabled_widgets,
-                image_mode=image_mode,
-            )
-            if payload is not None:
-                return payload
-
-        return None
+        return await self._payload_for_widget(
+            scheduled_widget,
+            enabled_widgets=enabled_widgets,
+            image_mode=image_mode,
+            playhead_ms=playhead_s * 1000,
+        )
 
     async def _payload_for_widget(
         self,

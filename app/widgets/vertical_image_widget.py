@@ -58,12 +58,19 @@ class VerticalImageWidget(BaseWidget):
 
         self._ensure_paths()
 
-    async def get_data(self, image_mode: ImageMode = "rgb565_base64") -> dict[str, Any] | None:
+    async def get_data(
+        self,
+        image_mode: ImageMode = "rgb565_base64",
+        *,
+        playhead_ms: int | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any] | None:
         try:
             state = self._load_state()
             selection = self._resolve_selection(
                 state,
                 allow_inactive_fallback=False,
+                now_ms=playhead_ms,
             )
             if selection is None:
                 return None
